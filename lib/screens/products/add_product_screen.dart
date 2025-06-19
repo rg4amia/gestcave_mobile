@@ -69,7 +69,7 @@ class AddProductScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Product Details',
+                'Ajouter Produits',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -92,16 +92,50 @@ class AddProductScreen extends StatelessWidget {
               SizedBox(height: 16),
               Obx(
                 () => DropdownButtonFormField<Category>(
-                  decoration: _buildInputDecoration('Category'),
+                  decoration: _buildInputDecoration('Catégories').copyWith(
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    prefixIcon: Icon(Icons.category, color: Color(0xFF6C4BFF)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Color(0xFF6C4BFF),
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Color(0xFF6C4BFF),
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
                   value: _selectedCategory.value,
                   items: categoryController.categories
                       .map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c.name)),
+                        (c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(
+                            c.name,
+                            style: TextStyle(
+                              color: Color(0xFF6C4BFF),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       )
                       .toList(),
                   onChanged: (value) => _selectedCategory.value = value,
                   validator: (value) =>
                       value == null ? 'Category is required' : null,
+                  icon: Icon(Icons.arrow_drop_down, color: Color(0xFF6C4BFF)),
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               SizedBox(height: 16),
@@ -111,15 +145,15 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _priceController,
                       decoration: _buildInputDecoration(
-                        'Price',
+                        'Prix',
                         suffixIcon: Icon(
-                          Icons.attach_money,
+                          Icons.currency_franc_rounded,
                           color: Colors.grey,
                         ),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) =>
-                          value?.isEmpty ?? true ? 'Price is required' : null,
+                          value?.isEmpty ?? true ? 'Prix est requis' : null,
                     ),
                   ),
                   SizedBox(width: 16),
@@ -127,12 +161,12 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _stockController,
                       decoration: _buildInputDecoration(
-                        'Stock Quantity',
+                        'Quantité',
                         suffixIcon: Icon(Icons.inventory_2, color: Colors.grey),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) =>
-                          value?.isEmpty ?? true ? 'Stock is required' : null,
+                          value?.isEmpty ?? true ? 'Quantité est requis' : null,
                     ),
                   ),
                 ],
@@ -144,7 +178,7 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _minStockController,
                       decoration: _buildInputDecoration(
-                        'Minimum Stock',
+                        'Quantité Minimum',
                         suffixIcon: Icon(
                           Icons.warning_amber,
                           color: Colors.grey,
@@ -152,7 +186,7 @@ class AddProductScreen extends StatelessWidget {
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) => value?.isEmpty ?? true
-                          ? 'Minimum stock is required'
+                          ? 'Quantité Minimum est requis'
                           : null,
                     ),
                   ),
@@ -161,7 +195,7 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _barcodeController,
                       decoration: _buildInputDecoration(
-                        'Barcode',
+                        'Code Barre',
                         suffixIcon: Icon(
                           Icons.qr_code_scanner,
                           color: Colors.grey,
@@ -178,7 +212,7 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _purchasePriceController,
                       decoration: _buildInputDecoration(
-                        'Purchase Price',
+                        'Prix d\'achat',
                         suffixIcon: Icon(
                           Icons.shopping_cart,
                           color: Colors.grey,
@@ -186,7 +220,7 @@ class AddProductScreen extends StatelessWidget {
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) => value?.isEmpty ?? true
-                          ? 'Purchase price is required'
+                          ? 'Prix d\'achat est requis'
                           : null,
                     ),
                   ),
@@ -195,12 +229,12 @@ class AddProductScreen extends StatelessWidget {
                     child: TextFormField(
                       controller: _salePriceController,
                       decoration: _buildInputDecoration(
-                        'Sale Price',
+                        'Prix de vente',
                         suffixIcon: Icon(Icons.sell, color: Colors.grey),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) => value?.isEmpty ?? true
-                          ? 'Sale price is required'
+                          ? 'Prix de vente est requis'
                           : null,
                     ),
                   ),
@@ -276,7 +310,7 @@ class AddProductScreen extends StatelessWidget {
                               ),
                               SizedBox(height: 8),
                               Text(
-                                'Add Product Image',
+                                'Ajouter une image',
                                 style: TextStyle(
                                   color: Color(0xFF6C63FF),
                                   fontSize: 16,
@@ -327,16 +361,25 @@ class AddProductScreen extends StatelessWidget {
                         salePrice: double.parse(_salePriceController.text),
                       );
 
-                      try {
-                        await productController.addProduct(
-                          product,
-                          image: _image.value,
+                      final success = await productController.addProduct(
+                        product,
+                        image: _image.value,
+                      );
+
+                      if (success) {
+                        Get.snackbar(
+                          'Succès',
+                          'Produit ajouté avec succès',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
                         );
                         Get.back();
-                      } catch (e) {
+                      } else {
                         Get.snackbar(
-                          'Error',
-                          'Failed to add product: $e',
+                          'Erreur',
+                          'Échec de l\'ajout du produit',
+                          snackPosition: SnackPosition.BOTTOM,
                           backgroundColor: Colors.red,
                           colorText: Colors.white,
                         );
@@ -352,7 +395,7 @@ class AddProductScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Add Product',
+                    'Ajouter',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

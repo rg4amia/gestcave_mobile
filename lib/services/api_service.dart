@@ -11,6 +11,7 @@ import '../models/dashboard.dart';
 import 'database_service.dart';
 import '../models/paginated_response_product.dart';
 import '../models/paginated_response_category.dart';
+import '../models/paginated_response_transaction.dart';
 
 class ApiService {
   final String baseUrl = 'http://10.0.2.2:8000/api/v1';
@@ -118,14 +119,16 @@ class ApiService {
 
   Future<void> logout() async {
     try {
-     _token = await _storage.read(key: 'token');
-      await _dio.post('$baseUrl/logout',
+      _token = await _storage.read(key: 'token');
+      await _dio.post(
+        '$baseUrl/logout',
         options: dio.Options(
           headers: {
             'Authorization': _token != null ? 'Bearer $_token' : null,
             'Content-Type': 'application/json',
           },
-        ),);
+        ),
+      );
     } catch (e) {
       // Even if the server request fails, we still want to clear local tokens
     } finally {
@@ -135,7 +138,7 @@ class ApiService {
 
   Future<PaginatedResponse> getProducts({int page = 1}) async {
     try {
-       _token = await _storage.read(key: 'token');
+      _token = await _storage.read(key: 'token');
       final response = await _dio.get(
         '$baseUrl/products',
         queryParameters: {'page': page},
@@ -171,14 +174,16 @@ class ApiService {
 
   Future<List<Product>> getLowStockProducts() async {
     try {
-       _token = await _storage.read(key: 'token');
-      final response = await _dio.get('$baseUrl/products/low-stock',
+      _token = await _storage.read(key: 'token');
+      final response = await _dio.get(
+        '$baseUrl/products/low-stock',
         options: dio.Options(
           headers: {
             'Authorization': _token != null ? 'Bearer $_token' : null,
             'Content-Type': 'application/json',
           },
-        ),);
+        ),
+      );
       return (response.data as List).map((p) => Product.fromJson(p)).toList();
     } catch (e) {
       final dbService = DatabaseService();
@@ -190,6 +195,8 @@ class ApiService {
   Future<Product> createProduct(Product product, {File? image}) async {
     try {
       _token = await _storage.read(key: 'token');
+      print('token : $_token');
+      print('product : ${product.toJson()}');
       dio.FormData formData = dio.FormData.fromMap(product.toJson());
       if (image != null) {
         final compressedImage = await _compressImage(image);
@@ -203,17 +210,19 @@ class ApiService {
           ),
         );
       }
-      final response = await _dio.post('$baseUrl/products', data: formData,
+      final response = await _dio.post(
+        '$baseUrl/products',
+        data: formData,
         options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),);
+          headers: {'Authorization': _token != null ? 'Bearer $_token' : null},
+        ),
+      );
+      print('response create product : ${response.data}');
       final newProduct = Product.fromJson(response.data);
       await DatabaseService().saveProduct(newProduct);
       return newProduct;
     } catch (e) {
+      print('error create product : $e');
       // Queue for offline sync
       await DatabaseService().addToSyncQueue(
         SyncQueue(
@@ -227,33 +236,45 @@ class ApiService {
     }
   }
 
-  Future<List<Transaction>> getTransactions() async {
+  Future<PaginatedTransactionResponse> getTransactions({int page = 1}) async {
     try {
       _token = await _storage.read(key: 'token');
-      final response = await _dio.get('$baseUrl/transactions',
+      final response = await _dio.get(
+        '$baseUrl/transactions',
+        queryParameters: {'page': page},
         options: dio.Options(
           headers: {
             'Authorization': _token != null ? 'Bearer $_token' : null,
             'Content-Type': 'application/json',
           },
-        ),);
-      final transactions = (response.data as List)
-          .map((t) => Transaction.fromJson(t))
-          .toList();
+        ),
+      );
+      final paginatedResponse = PaginatedTransactionResponse.fromJson(
+        response.data,
+      );
       final dbService = DatabaseService();
-      for (var transaction in transactions) {
+      for (var transaction in paginatedResponse.transactions) {
         await dbService.saveTransaction(transaction);
       }
-      return transactions;
+      return paginatedResponse;
     } catch (e) {
       final dbService = DatabaseService();
-      return await dbService.getTransactions();
+      final transactions = await dbService.getTransactions();
+      return PaginatedTransactionResponse(
+        transactions: transactions,
+        total: transactions.length,
+        currentPage: 1,
+        lastPage: 1,
+        perPage: transactions.length,
+        from: 1,
+        to: transactions.length,
+      );
     }
   }
 
   Future<Transaction> createTransaction(Transaction transaction) async {
     try {
-       _token = await _storage.read(key: 'token');
+      _token = await _storage.read(key: 'token');
       final response = await _dio.post(
         '$baseUrl/transactions',
         options: dio.Options(
@@ -264,6 +285,7 @@ class ApiService {
         ),
         data: transaction.toJson(),
       );
+      print('response : ${response.data}');
       final newTransaction = Transaction.fromJson(response.data);
       await DatabaseService().saveTransaction(newTransaction);
       return newTransaction;
@@ -367,7 +389,7 @@ class ApiService {
 
   Future<void> deleteProduct(int id) async {
     try {
-     _token = await _storage.read(key: 'token');
+      _token = await _storage.read(key: 'token');
       await _dio.delete('$baseUrl/products/$id');
       await DatabaseService().deleteProduct(id);
     } catch (e) {
@@ -459,62 +481,71 @@ class ApiService {
           case 'create':
             switch (item.entity) {
               case 'product':
-                await _dio.post('$baseUrl/products', data: item.data,
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.post(
+                  '$baseUrl/products',
+                  data: item.data,
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
               case 'transaction':
-                await _dio.post('$baseUrl/transactions', data: item.data,
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.post(
+                  '$baseUrl/transactions',
+                  data: item.data,
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
               case 'category':
-                await _dio.post('$baseUrl/categories', data: item.data, 
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.post(
+                  '$baseUrl/categories',
+                  data: item.data,
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
             }
             break;
           case 'delete':
             switch (item.entity) {
               case 'product':
-                await _dio.delete('$baseUrl/products/${item.data['id']}',
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.delete(
+                  '$baseUrl/products/${item.data['id']}',
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
               case 'transaction':
-                await _dio.delete('$baseUrl/transactions/${item.data['id']}',
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.delete(
+                  '$baseUrl/transactions/${item.data['id']}',
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
               case 'category':
-                await _dio.delete('$baseUrl/categories/${item.data['id']}',
-                options: dio.Options(
-                  headers: {
-                    'Authorization': _token != null ? 'Bearer $_token' : null,
-                    'Content-Type': 'application/json',
-                  },
-                ),);
+                await _dio.delete(
+                  '$baseUrl/categories/${item.data['id']}',
+                  options: dio.Options(
+                    headers: {
+                      'Authorization': _token != null ? 'Bearer $_token' : null,
+                    },
+                  ),
+                );
                 break;
             }
             break;
@@ -551,13 +582,15 @@ class ApiService {
       print('token : $_token');
       var url = '$baseUrl/dashboard';
       print('url get dashboard : $url');
-      final response = await _dio.get(url,
+      final response = await _dio.get(
+        url,
         options: dio.Options(
           headers: {
             'Authorization': _token != null ? 'Bearer $_token' : null,
             'Content-Type': 'application/json',
           },
-        ),);
+        ),
+      );
       print('response dashboard : ${response.data}');
       return DashboardData.fromJson(response.data);
     } catch (e) {

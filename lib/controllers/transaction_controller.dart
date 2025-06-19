@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
+import '../models/paginated_response_transaction.dart';
 
 class TransactionController extends GetxController {
   final ApiService _apiService = ApiService();
@@ -9,6 +10,13 @@ class TransactionController extends GetxController {
   var isLoading = false.obs;
   var filterType = 'all'.obs;
   var filterDate = Rxn<DateTime>();
+
+  // Pagination state
+  var currentPage = 1.obs;
+  var totalTransactions = 0.obs;
+  var lastPage = 1.obs;
+  var isLoadingMore = false.obs;
+  var hasMoreData = true.obs;
 
   List<Transaction> get filteredTransactions {
     var filtered = transactions;
@@ -30,28 +38,65 @@ class TransactionController extends GetxController {
     fetchTransactions();
   }
 
-  Future<void> fetchTransactions() async {
-    isLoading.value = true;
+  Future<void> fetchTransactions({bool loadMore = false}) async {
+    if (loadMore) {
+      if (!hasMoreData.value || isLoadingMore.value) return;
+      isLoadingMore.value = true;
+    } else {
+      isLoading.value = true;
+      currentPage.value = 1;
+      transactions.clear();
+    }
     try {
-      transactions.value = await _apiService.getTransactions();
+      final response = await _apiService.getTransactions(
+        page: currentPage.value,
+      );
+      if (loadMore) {
+        transactions.addAll(response.transactions);
+      } else {
+        transactions.value = response.transactions;
+      }
+      totalTransactions.value = response.total;
+      lastPage.value = response.lastPage;
+      hasMoreData.value = currentPage.value < response.lastPage;
+      if (hasMoreData.value) {
+        currentPage.value++;
+      }
       statistics.value = await _apiService.getStatistics();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to fetch transactions: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to fetch transactions: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
-      isLoading.value = false;
+      if (loadMore) {
+        isLoadingMore.value = false;
+      } else {
+        isLoading.value = false;
+      }
     }
   }
 
-  Future<void> addTransaction(Transaction transaction) async {
+  Future<bool> addTransaction(Transaction transaction) async {
     try {
       final newTransaction = await _apiService.createTransaction(transaction);
-      transactions.add(newTransaction);
-      Get.snackbar('Success', 'Transaction added successfully',
-          snackPosition: SnackPosition.BOTTOM);
+      transactions.insert(0, newTransaction);
+      totalTransactions.value++;
+      return true;
     } catch (e) {
-      Get.snackbar('Error', 'Failed to add transaction: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      print('Failed to add transaction: $e');
+      return false;
     }
+  }
+
+  void refreshTransactions() {
+    currentPage.value = 1;
+    hasMoreData.value = true;
+    fetchTransactions();
+  }
+
+  void loadMoreTransactions() {
+    fetchTransactions(loadMore: true);
   }
 }

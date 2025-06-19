@@ -104,9 +104,13 @@ class FinancialStats {
     return FinancialStats(
       totalPurchases: double.parse(json['total_purchases'].toString()),
       totalSales: double.parse(json['total_sales'].toString()),
-      totalProfit: json['total_profit']?.toDouble() ?? 0.0,
+      totalProfit: json['total_profit'] != null
+          ? double.parse(json['total_profit'].toString())
+          : 0.0,
       monthlySales: double.parse(json['monthly_sales'].toString()),
-      monthlyProfit: json['monthly_profit']?.toDouble() ?? 0.0,
+      monthlyProfit: json['monthly_profit'] != null
+          ? double.parse(json['monthly_profit'].toString())
+          : 0.0,
     );
   }
 }
@@ -133,7 +137,9 @@ class TopProduct {
       totalSales: json['total_sales'] != null
           ? double.parse(json['total_sales'].toString())
           : null,
-      totalProfit: json['total_profit']?.toDouble(),
+      totalProfit: json['total_profit'] != null
+          ? double.parse(json['total_profit'].toString())
+          : null,
       product: Product.fromJson(json['product']),
     );
   }

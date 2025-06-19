@@ -48,7 +48,7 @@ class AddTransactionScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Transaction'),
+        title: Text('Ajouter transaction'),
         backgroundColor: Color(0xFF6C63FF),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -61,7 +61,7 @@ class AddTransactionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Transaction Details',
+                'Ajouter transaction',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -72,7 +72,7 @@ class AddTransactionScreen extends StatelessWidget {
               Obx(
                 () => DropdownButtonFormField<Product>(
                   decoration: _buildInputDecoration(
-                    'Product',
+                    'Produit',
                     suffixIcon: Icon(Icons.inventory_2, color: Colors.grey),
                   ),
                   value: _selectedProduct.value,
@@ -83,7 +83,7 @@ class AddTransactionScreen extends StatelessWidget {
                       .toList(),
                   onChanged: (value) => _selectedProduct.value = value,
                   validator: (value) =>
-                      value == null ? 'Product is required' : null,
+                      value == null ? 'Produit est obligatoire' : null,
                 ),
               ),
               SizedBox(height: 16),
@@ -143,7 +143,7 @@ class AddTransactionScreen extends StatelessWidget {
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value?.isEmpty ?? true) {
-                    return 'Quantity is required';
+                    return 'La quantité est obligatoire';
                   }
                   final quantity = int.tryParse(value!);
                   if (quantity == null || quantity <= 0) {
@@ -152,7 +152,7 @@ class AddTransactionScreen extends StatelessWidget {
                   if (_selectedType.value == 'out' &&
                       _selectedProduct.value != null &&
                       quantity > _selectedProduct.value!.stockQuantity) {
-                    return 'Insufficient stock';
+                    return 'Le Stock est insuffisant';
                   }
                   return null;
                 },
@@ -252,18 +252,9 @@ class AddTransactionScreen extends StatelessWidget {
                         notes: _notesController.text.trim(),
                       );
 
-                      try {
-                        print('transaction : $transaction');
-                        await transactionController.addTransaction(transaction);
-                        Get.back();
-                      } catch (e) {
-                        Get.snackbar(
-                          'Error',
-                          'Failed to add transaction: $e',
-                          backgroundColor: Colors.red,
-                          colorText: Colors.white,
-                        );
-                      }
+                      final success = await transactionController
+                          .addTransaction(transaction);
+                      Get.back(result: success);
                     }
                   },
                   style: ElevatedButton.styleFrom(

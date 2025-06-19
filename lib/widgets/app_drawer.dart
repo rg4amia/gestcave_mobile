@@ -7,94 +7,104 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const selectedColor = Color(0xFF6C4BFF);
+    const unselectedColor = Color(0xFF8B8B8B); // Gris doux pour non sélectionné
     final colorScheme = Theme.of(context).colorScheme;
+    final selectedIndex = _getSelectedIndex(Get.currentRoute);
 
-    return NavigationDrawer(
-      onDestinationSelected: (index) {
-        switch (index) {
-          case 0:
-            Get.toNamed('/dashboard');
-            break;
-          case 1:
-            Get.toNamed('/products');
-            break;
-          case 2:
-            Get.toNamed('/transactions');
-            break;
-          case 3:
-            Get.toNamed('/categories');
-            break;
-          case 4:
-            Get.toNamed('/reports');
-            break;
-        }
-        Get.back();
-      },
-      selectedIndex: _getSelectedIndex(Get.currentRoute),
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(28, 16, 16, 20),
-          child: Text(
-            'Beverage Inventory',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colorScheme.primary,
-                ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Obx(() => Text(
-                Get.find<AuthController>().user.value?.name ?? '',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-              )),
-        ),
-        const SizedBox(height: 8),
-        NavigationDrawerDestination(
-          icon: const Icon(Icons.dashboard_outlined),
-          selectedIcon: const Icon(Icons.dashboard),
-          label: const Text('Dashboard'),
-        ),
-        NavigationDrawerDestination(
-          icon: const Icon(Icons.inventory_2_outlined),
-          selectedIcon: const Icon(Icons.inventory_2),
-          label: const Text('Products'),
-        ),
-        NavigationDrawerDestination(
-          icon: const Icon(Icons.swap_horiz_outlined),
-          selectedIcon: const Icon(Icons.swap_horiz),
-          label: const Text('Transactions'),
-        ),
-        NavigationDrawerDestination(
-          icon: const Icon(Icons.category_outlined),
-          selectedIcon: const Icon(Icons.category),
-          label: const Text('Categories'),
-        ),
-        NavigationDrawerDestination(
-          icon: const Icon(Icons.analytics_outlined),
-          selectedIcon: const Icon(Icons.analytics),
-          label: const Text('Reports'),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(28, 16, 28, 16),
-          child: Divider(),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: TextButton.icon(
-            onPressed: () async {
-              await Get.find<AuthController>().logout();
-              Get.offAllNamed('/');
-            },
-            icon: const Icon(Icons.logout),
-            label: const Text('Logout'),
-            style: TextButton.styleFrom(
-              foregroundColor: colorScheme.error,
+    return Drawer(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 40, 16, 20),
+            child: Text(
+              'Beverage Inventory',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: selectedColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-      ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Obx(
+              () => Text(
+                Get.find<AuthController>().user.value?.name ?? '',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: unselectedColor),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _DrawerItem(
+            icon: Icons.dashboard_outlined,
+            selectedIcon: Icons.dashboard,
+            label: 'Dashboard',
+            selected: selectedIndex == 0,
+            onTap: () {
+              Get.toNamed('/dashboard');
+              Get.back();
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.inventory_2_outlined,
+            selectedIcon: Icons.inventory_2,
+            label: 'Products',
+            selected: selectedIndex == 1,
+            onTap: () {
+              Get.toNamed('/products');
+              Get.back();
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.swap_horiz_outlined,
+            selectedIcon: Icons.swap_horiz,
+            label: 'Transactions',
+            selected: selectedIndex == 2,
+            onTap: () {
+              Get.toNamed('/transactions');
+              Get.back();
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.category_outlined,
+            selectedIcon: Icons.category,
+            label: 'Categories',
+            selected: selectedIndex == 3,
+            onTap: () {
+              Get.toNamed('/categories');
+              Get.back();
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.analytics_outlined,
+            selectedIcon: Icons.analytics,
+            label: 'Reports',
+            selected: selectedIndex == 4,
+            onTap: () {
+              Get.toNamed('/reports');
+              Get.back();
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(28, 16, 28, 16),
+            child: Divider(),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: TextButton.icon(
+              onPressed: () async {
+                await Get.find<AuthController>().logout();
+                Get.offAllNamed('/');
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -113,5 +123,69 @@ class AppDrawer extends StatelessWidget {
       default:
         return 0;
     }
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const selectedColor = Color(0xFF6C4BFF);
+    const unselectedColor = Color(0xFF8B8B8B);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? selectedColor.withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 5,
+              height: 40,
+              decoration: BoxDecoration(
+                color: selected ? selectedColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              selected ? selectedIcon : icon,
+              color: selected ? selectedColor : unselectedColor,
+              size: 28,
+            ),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? selectedColor : unselectedColor,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -11,7 +11,7 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dashboardController = Get.find<DashboardController>();
-    final currencyFormat = NumberFormat.currency(symbol: 'FCFA');
+    final currencyFormat = NumberFormat.currency(symbol: 'F');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -21,7 +21,6 @@ class DashboardScreen extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      drawer: AppDrawer(),
       body: RefreshIndicator(
         color: Color(0xFF6C4BFF),
         onRefresh: () => dashboardController.fetchDashboardData(),
@@ -54,12 +53,12 @@ class DashboardScreen extends StatelessWidget {
                       const SizedBox(height: 5),
                       _buildSummaryCard(
                         context,
-                        'Total Products',
+                        'Nombre total de produit',
                         data.totalProducts.toString(),
                         Icons.inventory_2,
                         () => Get.toNamed('/products'),
                         subtitle:
-                            'Total Value: ${currencyFormat.format(data.totalValue)}',
+                            'Totale: ${currencyFormat.format(data.totalValue)}',
                       ),
                       const SizedBox(height: 16),
                       _buildSummaryCard(

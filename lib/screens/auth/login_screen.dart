@@ -22,14 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Get.back(),
-        ),
-      ),
+      appBar: AppBar(backgroundColor: Colors.white),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -42,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: 'Hello there ',
+                        text: 'Connectez vous !!!',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w600,
@@ -87,10 +80,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Email is required';
+                          return 'Email est obligatoire';
                         }
                         if (!GetUtils.isEmail(value)) {
-                          return 'Please enter a valid email';
+                          return 'Veuillez entre un format d\'email valide';
                         }
                         return null;
                       },
@@ -102,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Password',
+                      'Mot de passe',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -144,10 +137,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Password is required';
+                          return 'Mot de passe est obligatoire';
                         }
                         if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                          return 'Le Mot de passe doit au moins 6 caractères';
                         }
                         return null;
                       },
@@ -189,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Handle forgot password
                     },
                     child: const Text(
-                      'Forgot Password?',
+                      'Mot de passe oublié ?',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -198,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 180),
+                const SizedBox(height: 100),
                 Obx(
                   () => authController.isLoading.value
                       ? const Center(
@@ -229,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             elevation: 0,
                           ),
                           child: const Text(
-                            'SIGN IN',
+                            'CONNEXION',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

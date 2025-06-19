@@ -26,10 +26,8 @@ class CategoriesScreen extends StatelessWidget {
           ),
         ],
       ),
-      drawer: isTablet ? null : AppDrawer(),
       body: Row(
         children: [
-          if (isTablet) AppDrawer(),
           Expanded(
             child: Obx(() {
               if (categoryController.isLoading.value) {

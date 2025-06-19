@@ -14,6 +14,27 @@ class TransactionsScreen extends StatelessWidget {
     final isTablet = MediaQuery.of(context).size.width > 600;
     final colorScheme = Theme.of(context).colorScheme;
 
+    Future<void> _navigateToAddTransaction(BuildContext context) async {
+      final result = await Get.toNamed(Routes.ADD_TRANSACTION);
+      if (result == true) {
+        Get.snackbar(
+          'Succès',
+          'Transaction ajoutée avec succès',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      } else if (result == false) {
+        Get.snackbar(
+          'Erreur',
+          'Échec de l\'ajout de la transaction',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
@@ -23,17 +44,16 @@ class TransactionsScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => Get.toNamed(Routes.ADD_TRANSACTION),
+            onPressed: () => _navigateToAddTransaction(context),
           ),
         ],
       ),
-      drawer: isTablet ? null : AppDrawer(),
       body: Row(
         children: [
-          if (isTablet) AppDrawer(),
           Expanded(
             child: Obx(() {
-              if (transactionController.isLoading.value) {
+              if (transactionController.isLoading.value &&
+                  transactionController.transactions.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
               if (transactionController.transactions.isEmpty) {
@@ -71,7 +91,7 @@ class TransactionsScreen extends StatelessWidget {
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: () => Get.toNamed(Routes.ADD_TRANSACTION),
+                          onPressed: () => _navigateToAddTransaction(context),
                           icon: const Icon(Icons.add),
                           label: const Text('Ajouter Transaction'),
                           style: ElevatedButton.styleFrom(
@@ -93,81 +113,143 @@ class TransactionsScreen extends StatelessWidget {
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: transactionController.transactions.length,
-                itemBuilder: (context, index) {
-                  final transaction = transactionController.transactions[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: transaction.type == 'in'
-                              ? colorScheme.primaryContainer
-                              : colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          transaction.type == 'in'
-                              ? Icons.arrow_downward
-                              : Icons.arrow_upward,
-                          color: transaction.type == 'in'
-                              ? colorScheme.primary
-                              : colorScheme.error,
-                        ),
-                      ),
-                      title: Text(
-                        transaction.product?.name ?? 'Unknown Product',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${transaction.quantity} units - ${transaction.createdAt.toString().split('.')[0]}',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          if (transaction.notes != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              transaction.notes!,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    fontStyle: FontStyle.italic,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '\$${transaction.totalPrice.toStringAsFixed(2)}',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${transaction.type == 'in' ? '+' : '-'}${transaction.quantity}',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: transaction.type == 'in'
-                                      ? colorScheme.primary
-                                      : colorScheme.error,
-                                ),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        // TODO: Navigate to Transaction Details
-                      },
-                    ),
-                  );
+              return RefreshIndicator(
+                color: Colors.white,
+                onRefresh: () async {
+                  transactionController.refreshTransactions();
                 },
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification scrollInfo) {
+                    if (!transactionController.isLoadingMore.value &&
+                        transactionController.hasMoreData.value &&
+                        scrollInfo.metrics.pixels >=
+                            scrollInfo.metrics.maxScrollExtent - 200) {
+                      transactionController.loadMoreTransactions();
+                    }
+                    return false;
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount:
+                        transactionController.transactions.length +
+                        (transactionController.hasMoreData.value ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == transactionController.transactions.length) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                      final transaction =
+                          transactionController.transactions[index];
+                      final isIn = transaction.type == 'in';
+                      return Card(
+                        color: isIn ? Colors.green[50] : Colors.red[50],
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child:
+                                    transaction.product?.imagePath != null &&
+                                        transaction
+                                            .product!
+                                            .imagePath!
+                                            .isNotEmpty
+                                    ? Image.network(
+                                        transaction.product!.imagePath!,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Image.asset(
+                                                  'assets/images/Home.png',
+                                                  width: 40,
+                                                  height: 40,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                      )
+                                    : Image.asset(
+                                        'assets/images/Home.png',
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isIn
+                                      ? Colors.green[100]
+                                      : Colors.red[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  isIn
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward,
+                                  color: isIn ? Colors.green : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          title: Text(
+                            transaction.product?.name ?? 'Unknown Product',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${transaction.quantity} units - ${transaction.createdAt.toString().split('.')[0]}',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              if (transaction.notes != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  transaction.notes!,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '\$${transaction.totalPrice.toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '${isIn ? '+' : '-'}${transaction.quantity}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: isIn ? Colors.green : Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            // TODO: Navigate to Transaction Details
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
               );
             }),
           ),
@@ -189,7 +271,7 @@ class TransactionsScreen extends StatelessWidget {
           ],
         ),
         child: FloatingActionButton.extended(
-          onPressed: () => Get.toNamed(Routes.ADD_TRANSACTION),
+          onPressed: () => _navigateToAddTransaction(context),
           icon: const Icon(Icons.add, color: Colors.white),
           label: const Text('Ajouter', style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.transparent,

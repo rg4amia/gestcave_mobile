@@ -22,10 +22,8 @@ class ReportsScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      drawer: isTablet ? null : AppDrawer(),
       body: Row(
         children: [
-          if (isTablet) AppDrawer(),
           Expanded(
             child: CustomScrollView(
               slivers: [
