@@ -43,10 +43,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   Widget build(BuildContext context) {
     Future<void> _navigateToAddProduct(BuildContext context) async {
-      print(" retour save produit");
       final result = await Get.toNamed(Routes.ADD_PRODUCT);
-
-      print(result);
       if (result == true) {
         Get.snackbar(
           'Succès',
@@ -62,37 +59,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      /*  appBar: AppBar(
-        title: Obx(
-          () => Text('Products (${productController.filteredProducts.length})'),
-        ),
-        backgroundColor: Color(0xFF6C4BFF),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToAddProduct(context),
-          ),
-        ],
-      ), */
       body: Column(
         children: [
           // Barre de recherche et filtres
           Container(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withOpacity(0.08),
                   spreadRadius: 1,
-                  blurRadius: 3,
-                  offset: Offset(0, 2),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
                 ),
               ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Champ de recherche
                 Stack(
@@ -100,15 +84,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
+                      style: TextStyle(fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Rechercher un produit ou catégorie...',
                         prefixIcon: Icon(
                           Icons.search,
                           color: Color(0xFF6C4BFF),
+                          size: 20,
                         ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear, color: Colors.grey),
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: Colors.grey,
+                                  size: 18,
+                                ),
                                 onPressed: () {
                                   _searchController.clear();
                                   productController.clearSearch();
@@ -116,18 +106,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               )
                             : null,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: Colors.grey[300]!),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
                             color: Color(0xFF6C4BFF),
-                            width: 2,
+                            width: 1.5,
                           ),
                         ),
                         filled: true,
                         fillColor: Colors.grey[50],
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 8,
+                        ),
                       ),
                     ),
                     // Suggestions de recherche
@@ -150,19 +144,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       }
 
                       return Positioned(
-                        top: 60,
+                        top: 44,
                         left: 0,
                         right: 0,
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey.withOpacity(0.3),
+                                color: Colors.grey.withOpacity(0.2),
                                 spreadRadius: 1,
-                                blurRadius: 5,
-                                offset: Offset(0, 2),
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
                               ),
                             ],
                           ),
@@ -171,12 +165,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             itemCount: suggestions.length,
                             itemBuilder: (context, index) {
                               return ListTile(
+                                dense: true,
                                 leading: Icon(
                                   Icons.search,
                                   color: Color(0xFF6C4BFF),
-                                  size: 20,
+                                  size: 18,
                                 ),
-                                title: Text(suggestions[index]),
+                                title: Text(
+                                  suggestions[index],
+                                  style: TextStyle(fontSize: 14),
+                                ),
                                 onTap: () {
                                   productController.selectSearchSuggestion(
                                     suggestions[index],
@@ -192,21 +190,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     }),
                   ],
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 8),
                 // Filtres de stock + catégorie sur la même ligne
                 Obx(() {
                   final categories = productController.categories;
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Dropdown catégorie stylisé
                         Container(
-                          margin: EdgeInsets.only(right: 12),
-                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          margin: EdgeInsets.only(right: 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 0,
+                          ),
+                          height: 36,
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(
                               color: Color(0xFF6C4BFF),
                               width: 1,
@@ -220,14 +223,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   Icon(
                                     Icons.category,
                                     color: Color(0xFF6C4BFF),
-                                    size: 20,
+                                    size: 18,
                                   ),
-                                  SizedBox(width: 4),
+                                  SizedBox(width: 2),
                                   Text(
                                     'Catégorie',
                                     style: TextStyle(
                                       color: Color(0xFF6C4BFF),
                                       fontWeight: FontWeight.w500,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
@@ -235,19 +239,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               icon: Icon(
                                 Icons.arrow_drop_down,
                                 color: Color(0xFF6C4BFF),
+                                size: 18,
                               ),
                               style: TextStyle(
                                 color: Color(0xFF6C4BFF),
                                 fontWeight: FontWeight.w500,
+                                fontSize: 13,
                               ),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                               dropdownColor: Colors.white,
                               items: [
                                 DropdownMenuItem<String>(
                                   value: null,
                                   child: Text(
                                     'Toutes',
-                                    style: TextStyle(color: Color(0xFF6C4BFF)),
+                                    style: TextStyle(
+                                      color: Color(0xFF6C4BFF),
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                                 ...categories.map(
@@ -257,6 +266,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       cat,
                                       style: TextStyle(
                                         color: Color(0xFF6C4BFF),
+                                        fontSize: 13,
                                       ),
                                     ),
                                   ),
@@ -276,7 +286,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           StockFilter.lowStock,
                         ])
                           Container(
-                            margin: EdgeInsets.only(right: 8),
+                            margin: EdgeInsets.only(right: 4),
                             child: FilterChip(
                               label: Text(
                                 productController.getStockFilterLabel(filter),
@@ -291,6 +301,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           filter,
                                         ),
                                   fontWeight: FontWeight.w500,
+                                  fontSize: 13,
                                 ),
                               ),
                               selected:
@@ -304,6 +315,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   filter,
                                 ),
                                 width: 1,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 0,
+                              ),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
                               ),
                               onSelected: (selected) {
                                 if (selected) {
@@ -344,7 +365,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 productController.selectedStockFilter.value !=
                                     StockFilter.all
                             ? 'Aucun produit trouvé'
-                            : 'Aucun Produit',
+                            : 'Aucun produit trouvé',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -423,6 +444,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(24.0),
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: productController.filteredProducts.length + 1,
                   itemBuilder: (context, index) {
                     if (index == productController.filteredProducts.length) {
@@ -441,7 +463,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           child: Padding(
                             padding: EdgeInsets.all(16.0),
                             child: Text(
-                              'No more products',
+                              'Aucun produit trouvé',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 14,
@@ -487,6 +509,38 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           child: Image.network(
                                             product.imagePath!,
                                             fit: BoxFit.cover,
+                                            width: 64,
+                                            height: 64,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Icon(
+                                                      Icons.broken_image,
+                                                      color: Color(0xFF6C4BFF),
+                                                      size: 32,
+                                                    ),
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return Center(
+                                                child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child: CircularProgressIndicator(
+                                                    value:
+                                                        loadingProgress
+                                                                .expectedTotalBytes !=
+                                                            null
+                                                        ? loadingProgress
+                                                                  .cumulativeBytesLoaded /
+                                                              loadingProgress
+                                                                  .expectedTotalBytes!
+                                                        : null,
+                                                    color: Color(0xFF6C4BFF),
+                                                    strokeWidth: 2,
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
                                         )
                                       : Icon(
@@ -569,13 +623,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     color: Color(0xFF6C4BFF).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(100),
                                   ),
-                                  child: Text(
-                                    '${product.price.toStringAsFixed(2)} F',
-                                    style: TextStyle(
-                                      color: Color(0xFF6C4BFF),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.currency_franc_rounded,
+                                        size: 16,
+                                        color: Color(0xFF6C4BFF),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        product.price.toStringAsFixed(2),
+                                        style: TextStyle(
+                                          color: Color(0xFF6C4BFF),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

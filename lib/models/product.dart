@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'category.dart';
 import 'transaction.dart';
 
@@ -41,8 +42,7 @@ class Product {
   bool get isLowStock => stockQuantity <= minimumStock;
 
   factory Product.fromJson(Map<String, dynamic> json) {
-
-     const String baseStorageUrl = 'http://10.0.2.2:8000/storage/';
+    final String baseStorageUrl = dotenv.env['BASE_STORAGE_URL'] ?? 'http://10.0.2.2:8000/storage/';
     String? imagePath = json['image_path'];
     if (imagePath != null && !imagePath.startsWith('http')) {
       imagePath = baseStorageUrl + imagePath;

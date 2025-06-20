@@ -142,76 +142,145 @@ class DashboardMainView extends StatelessWidget {
           child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(12.0),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 2),
                     _buildSummaryCard(
                       context,
-                      'Nombre total de produit',
-                      data.totalProducts.toString(),
+                      'Nombre total de produits',
+                      Text(
+                        data.totalProducts.toString(),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
                       Icons.inventory_2,
                       () {},
-                      subtitle:
-                          'Totale: ${currencyFormat.format(data.totalValue)}',
+                      subtitle: Row(
+                        children: [
+                          Icon(
+                            Icons.currency_franc_rounded,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            currencyFormat
+                                .format(data.totalValue)
+                                .replaceAll('F', ''),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     _buildSummaryCard(
                       context,
-                      'Stock Alerts',
-                      data.stockAlerts.total.toString(),
+                      'Alertes de stock',
+                      Text(
+                        data.stockAlerts.total.toString(),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
                       Icons.warning_amber_rounded,
                       () {},
-                      subtitle:
-                          'Critical: ${data.stockAlerts.critical}, Warning: ${data.stockAlerts.warning}',
+                      subtitle: Text(
+                        'Critique : ${data.stockAlerts.critical}, Alerte : ${data.stockAlerts.warning}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
                       color: data.stockAlerts.total > 0 ? Colors.red : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     _buildSummaryCard(
                       context,
-                      'Monthly Sales',
-                      currencyFormat.format(data.financialStats.monthlySales),
+                      'Ventes mensuelles',
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.currency_franc_rounded,
+                            size: 16,
+                            color: Color(0xFF4CAF50),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            currencyFormat
+                                .format(data.financialStats.monthlySales)
+                                .replaceAll('F', ''),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4CAF50),
+                            ),
+                          ),
+                        ],
+                      ),
                       Icons.trending_up,
                       () {},
-                      subtitle:
-                          'Profit: ${currencyFormat.format(data.financialStats.monthlyProfit)}',
+                      subtitle: Row(
+                        children: [
+                          Icon(
+                            Icons.currency_franc_rounded,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            currencyFormat
+                                .format(data.financialStats.monthlyProfit)
+                                .replaceAll('F', ''),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
                       color: Color(0xFF4CAF50),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
                     const Text(
-                      'Transactions',
+                      'Dernières transactions',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                   ]),
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final transaction = data.recentTransactions[index];
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey[200]!),
                       ),
                       child: ListTile(
-                        contentPadding: EdgeInsets.all(16),
+                        contentPadding: EdgeInsets.all(10),
                         leading: Container(
-                          width: 48,
-                          height: 48,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: transaction.type == 'in'
                                 ? Colors.green.withOpacity(0.1)
                                 : Colors.red[50],
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             transaction.type == 'in'
@@ -220,32 +289,32 @@ class DashboardMainView extends StatelessWidget {
                             color: transaction.type == 'in'
                                 ? Colors.green[500]
                                 : Colors.red,
-                            size: 24,
+                            size: 18,
                           ),
                         ),
                         title: Text(
-                          transaction.product?.name ?? 'Unknown Product',
+                          transaction.product?.name ?? 'Produit inconnu',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.black,
                           ),
                         ),
                         subtitle: Text(
-                          '${transaction.quantity} units - ${DateFormat('yyyy-MM-dd HH:mm').format(transaction.createdAt)}',
+                          '${transaction.quantity} unités - ${DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(transaction.createdAt)}',
                           style: TextStyle(
                             color: Colors.grey[600],
-                            fontSize: 14,
+                            fontSize: 12,
                           ),
                         ),
                         trailing: Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: transaction.type == 'in'
-                                ? Colors.green.withOpacity(0.1)
+                                ? Colors.green.withValues(alpha: 0.1)
                                 : Colors.red[50],
                             borderRadius: BorderRadius.circular(100),
                           ),
@@ -255,7 +324,7 @@ class DashboardMainView extends StatelessWidget {
                               color: transaction.type == 'in'
                                   ? Colors.green[500]
                                   : Colors.red,
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -266,53 +335,72 @@ class DashboardMainView extends StatelessWidget {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(12.0),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     const Text(
-                      'Top Products',
+                      'Meilleurs produits',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     ...data.topProducts.map(
                       (product) => Container(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.grey[200]!),
                         ),
                         child: ListTile(
-                          contentPadding: EdgeInsets.all(16),
+                          contentPadding: EdgeInsets.all(10),
                           title: Text(
                             product.product.name,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.black,
                             ),
                           ),
                           subtitle: Text(
-                            'Total Quantity: ${product.totalQuantity}',
+                            'Quantité totale : ${product.totalQuantity}',
                             style: TextStyle(
                               color: Colors.grey[600],
-                              fontSize: 14,
+                              fontSize: 12,
                             ),
                           ),
-                          trailing: Text(
-                            product.totalSales != null
-                                ? currencyFormat.format(product.totalSales)
-                                : '-',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
+                          trailing: product.totalSales != null
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.currency_franc_rounded,
+                                      size: 16,
+                                      color: Colors.black,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      currencyFormat
+                                          .format(product.totalSales)
+                                          .replaceAll('F', ''),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  '-',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -329,10 +417,10 @@ class DashboardMainView extends StatelessWidget {
   Widget _buildSummaryCard(
     BuildContext context,
     String title,
-    String value,
+    Widget value,
     IconData icon,
     VoidCallback onTap, {
-    String? subtitle,
+    Widget? subtitle,
     Color? color,
   }) {
     final iconColor = color ?? Color(0xFF6C4BFF);
@@ -373,23 +461,10 @@ class DashboardMainView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
+                      value,
                       if (subtitle != null) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        subtitle,
                       ],
                     ],
                   ),

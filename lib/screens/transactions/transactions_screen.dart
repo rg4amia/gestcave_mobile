@@ -205,10 +205,23 @@ class TransactionsScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                '\$${transaction.totalPrice.toStringAsFixed(2)}',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.currency_franc_rounded,
+                                    size: 16,
+                                    color: Colors.black,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    transaction.totalPrice.toStringAsFixed(2),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ),
                               Text(
                                 '${isIn ? '+' : '-'}${transaction.quantity}',

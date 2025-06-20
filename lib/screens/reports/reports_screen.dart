@@ -136,13 +136,19 @@ class ReportsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+            Row(
+              children: [
+                Icon(Icons.currency_franc_rounded, size: 16, color: color),
+                SizedBox(width: 4),
+                Text(
+                  value.replaceAll(r'\$', ''),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

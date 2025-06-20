@@ -56,7 +56,7 @@ class AddProductScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Product'),
+        title: Text('Ajouter Produit'),
         backgroundColor: Color(0xFF6C4BFF),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -69,7 +69,7 @@ class AddProductScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Ajouter Produits',
+                'Ajouter Produit',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
