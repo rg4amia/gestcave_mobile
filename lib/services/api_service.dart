@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -12,9 +13,11 @@ import 'database_service.dart';
 import '../models/paginated_response_product.dart';
 import '../models/paginated_response_category.dart';
 import '../models/paginated_response_transaction.dart';
+import '../models/api_response.dart';
 
 class ApiService {
-  final String baseUrl = 'http://10.0.2.2:8000/api/v1';
+  final String baseUrl =
+      dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api/v1';
   final dio.Dio _dio = dio.Dio();
   String? _token;
   final _storage = FlutterSecureStorage();
@@ -27,6 +30,17 @@ class ApiService {
   Future<void> _initializeToken() async {
     _token = await _storage.read(key: 'token');
   }
+
+  /// Sets up Dio interceptors to handle request headers and errors.
+  ///
+  /// An interceptor is added to include the Authorization header in requests
+  /// if a token is available. It also handles 401 Unauthorized errors by
+  /// attempting to refresh the token using a stored refresh token. If token
+  /// refresh is successful, the original request is retried. In case of
+  /// connection or receive timeouts, a network error exception is thrown.
+  ///
+  /// Throws an exception if there is no refresh token or if session expiration
+  /// occurs after a failed token refresh.
 
   void _setupInterceptors() {
     _dio.interceptors.add(
@@ -192,11 +206,12 @@ class ApiService {
     }
   }
 
-  Future<Product> createProduct(Product product, {File? image}) async {
+  Future<ApiResponse<Product>> createProductWithResponse(
+    Product product, {
+    File? image,
+  }) async {
     try {
       _token = await _storage.read(key: 'token');
-      print('token : $_token');
-      print('product : ${product.toJson()}');
       dio.FormData formData = dio.FormData.fromMap(product.toJson());
       if (image != null) {
         final compressedImage = await _compressImage(image);
@@ -217,22 +232,39 @@ class ApiService {
           headers: {'Authorization': _token != null ? 'Bearer $_token' : null},
         ),
       );
-      print('response create product : ${response.data}');
-      final newProduct = Product.fromJson(response.data);
-      await DatabaseService().saveProduct(newProduct);
-      return newProduct;
-    } catch (e) {
-      print('error create product : $e');
-      // Queue for offline sync
-      await DatabaseService().addToSyncQueue(
-        SyncQueue(
-          id: DateTime.now().millisecondsSinceEpoch,
-          action: 'create',
-          entity: 'product',
-          data: product.toJson(),
-        ),
+      // Laravel peut renvoyer {data, message, success} ou {errors}
+      if (response.data['errors'] != null) {
+        return ApiResponse<Product>(
+          data: null,
+          errors: Map<String, List<String>>.from(
+            response.data['errors'].map(
+              (k, v) => MapEntry(k, List<String>.from(v)),
+            ),
+          ),
+          message: response.data['message'],
+          success: false,
+        );
+      }
+      final newProduct = Product.fromJson(
+        response.data['data'] ?? response.data,
       );
-      throw Exception('Failed to create product: $e');
+      await DatabaseService().saveProduct(newProduct);
+      return ApiResponse<Product>(
+        data: newProduct,
+        errors: null,
+        message: response.data['message'] ?? 'Produit ajouté avec succès',
+        success: true,
+      );
+    } catch (e) {
+      // Gestion d'erreur réseau ou autre
+      return ApiResponse<Product>(
+        data: null,
+        errors: {
+          'error': [e.toString()],
+        },
+        message: 'Erreur lors de la création du produit',
+        success: false,
+      );
     }
   }
 
@@ -346,26 +378,46 @@ class ApiService {
     }
   }
 
-  Future<Category> createCategory(Category category) async {
+  Future<ApiResponse<Category>> createCategoryWithResponse(
+    Category category,
+  ) async {
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.post(
         '$baseUrl/categories',
         data: category.toJson(),
       );
-      final newCategory = Category.fromJson(response.data);
-      await DatabaseService().saveCategory(newCategory);
-      return newCategory;
-    } catch (e) {
-      await DatabaseService().addToSyncQueue(
-        SyncQueue(
-          id: DateTime.now().millisecondsSinceEpoch,
-          action: 'create',
-          entity: 'category',
-          data: category.toJson(),
-        ),
+      if (response.data['errors'] != null) {
+        return ApiResponse<Category>(
+          data: null,
+          errors: Map<String, List<String>>.from(
+            response.data['errors'].map(
+              (k, v) => MapEntry(k, List<String>.from(v)),
+            ),
+          ),
+          message: response.data['message'],
+          success: false,
+        );
+      }
+      final newCategory = Category.fromJson(
+        response.data['data'] ?? response.data,
       );
-      throw Exception('Failed to create category: $e');
+      await DatabaseService().saveCategory(newCategory);
+      return ApiResponse<Category>(
+        data: newCategory,
+        errors: null,
+        message: response.data['message'] ?? 'Catégorie ajoutée avec succès',
+        success: true,
+      );
+    } catch (e) {
+      return ApiResponse<Category>(
+        data: null,
+        errors: {
+          'error': [e.toString()],
+        },
+        message: 'Erreur lors de la création de la catégorie',
+        success: false,
+      );
     }
   }
 
@@ -579,9 +631,7 @@ class ApiService {
   Future<DashboardData> getDashboardData() async {
     try {
       _token = await _storage.read(key: 'token');
-      print('token : $_token');
       var url = '$baseUrl/dashboard';
-      print('url get dashboard : $url');
       final response = await _dio.get(
         url,
         options: dio.Options(
@@ -591,11 +641,59 @@ class ApiService {
           },
         ),
       );
-      print('response dashboard : ${response.data}');
       return DashboardData.fromJson(response.data);
     } catch (e) {
       print('error get dashboard data : $e');
       throw Exception('Failed to get dashboard data: $e');
+    }
+  }
+
+  Future<ApiResponse<Transaction>> createTransactionWithResponse(
+    Transaction transaction,
+  ) async {
+    try {
+      _token = await _storage.read(key: 'token');
+      final response = await _dio.post(
+        '$baseUrl/transactions',
+        options: dio.Options(
+          headers: {
+            'Authorization': _token != null ? 'Bearer $_token' : null,
+            'Content-Type': 'application/json',
+          },
+        ),
+        data: transaction.toJson(),
+      );
+      if (response.data['errors'] != null) {
+        return ApiResponse<Transaction>(
+          data: null,
+          errors: Map<String, List<String>>.from(
+            response.data['errors'].map(
+              (k, v) => MapEntry(k, List<String>.from(v)),
+            ),
+          ),
+          message: response.data['message'],
+          success: false,
+        );
+      }
+      final newTransaction = Transaction.fromJson(
+        response.data['data'] ?? response.data,
+      );
+      await DatabaseService().saveTransaction(newTransaction);
+      return ApiResponse<Transaction>(
+        data: newTransaction,
+        errors: null,
+        message: response.data['message'] ?? 'Transaction ajoutée avec succès',
+        success: true,
+      );
+    } catch (e) {
+      return ApiResponse<Transaction>(
+        data: null,
+        errors: {
+          'error': [e.toString()],
+        },
+        message: 'Erreur lors de la création de la transaction',
+        success: false,
+      );
     }
   }
 }

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/category_controller.dart';
-import '../../widgets/app_drawer.dart';
-import '../../widgets/app_bottom_nav_bar.dart';
-import '../../routes/app_pages.dart';
 
 class CategoriesScreen extends StatelessWidget {
   const CategoriesScreen({super.key});
@@ -14,18 +11,6 @@ class CategoriesScreen extends StatelessWidget {
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-        backgroundColor: Color(0xFF6C63FF),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => Get.toNamed(Routes.ADD_CATEGORY),
-          ),
-        ],
-      ),
       body: Row(
         children: [
           Expanded(
@@ -42,7 +27,7 @@ class CategoriesScreen extends StatelessWidget {
                       Icon(
                         Icons.category_outlined,
                         size: 64,
-                        color: Color(0xFF6C63FF).withOpacity(0.5),
+                        color: Color(0xFF6C4BFF).withOpacity(0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -57,19 +42,19 @@ class CategoriesScreen extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFF5A52E0)],
+                            colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Color(0xFF6C63FF).withOpacity(0.3),
+                              color: Color(0xFF6C4BFF).withOpacity(0.3),
                               blurRadius: 8,
                               offset: Offset(0, 4),
                             ),
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: () => Get.toNamed(Routes.ADD_CATEGORY),
+                          onPressed: () => _navigateToAddCategory(context),
                           icon: const Icon(Icons.add),
                           label: const Text('Ajouter'),
                           style: ElevatedButton.styleFrom(
@@ -114,7 +99,7 @@ class CategoriesScreen extends StatelessWidget {
                         ),
                         child: Icon(
                           Icons.category,
-                          color: Color(0xFF6C63FF),
+                          color: Color(0xFF6C4BFF),
                           size: 24,
                         ),
                       ),
@@ -138,13 +123,13 @@ class CategoriesScreen extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Color(0xFF6C63FF).withOpacity(0.1),
+                          color: Color(0xFF6C4BFF).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           '${category.totalProducts ?? 0} produits',
                           style: TextStyle(
-                            color: Color(0xFF6C63FF),
+                            color: Color(0xFF6C4BFF),
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -161,29 +146,21 @@ class CategoriesScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: isTablet ? null : AppBottomNavBar(),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6C63FF), Color(0xFF5A52E0)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFF6C63FF).withOpacity(0.3),
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => Get.toNamed(Routes.ADD_CATEGORY),
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Ajouter', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      ),
     );
+  }
+
+  Future<void> _navigateToAddCategory(BuildContext context) async {
+    final categoryController = Get.find<CategoryController>();
+    final result = await Get.toNamed('/add-category');
+    if (result == true) {
+      Get.snackbar(
+        'Succès',
+        'Catégorie ajoutée avec succès',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      categoryController.fetchCategories();
+    }
   }
 }

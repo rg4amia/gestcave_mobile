@@ -3,6 +3,7 @@ import 'dart:io';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import 'package:flutter/material.dart';
+import '../models/api_response.dart';
 
 enum StockFilter { all, outOfStock, critical, lowStock }
 
@@ -176,6 +177,8 @@ class ProductController extends GetxController {
     try {
       final response = await _apiService.getProducts(page: currentPage.value);
 
+      print(response.products.first);
+
       if (loadMore) {
         products.addAll(response.products);
       } else {
@@ -211,17 +214,21 @@ class ProductController extends GetxController {
     }
   }
 
-  Future<bool> addProduct(Product product, {File? image}) async {
-    try {
-      final newProduct = await _apiService.createProduct(product, image: image);
-      products.add(newProduct);
-      if (newProduct.isLowStock) lowStockProducts.add(newProduct);
+  Future<ApiResponse<Product>> addProductWithResponse(
+    Product product, {
+    File? image,
+  }) async {
+    final response = await _apiService.createProductWithResponse(
+      product,
+      image: image,
+    );
+    if (response.success && response.data != null) {
+      products.add(response.data!);
+      if (response.data!.isLowStock) lowStockProducts.add(response.data!);
       totalProducts.value++;
       _generateSearchSuggestions();
-      return true;
-    } catch (e) {
-      return false;
     }
+    return response;
   }
 
   void refreshProducts() {

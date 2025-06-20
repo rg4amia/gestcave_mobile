@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/theme.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
@@ -11,6 +12,9 @@ import 'services/background_sync.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Charger les variables d'environnement
+  await dotenv.load(fileName: ".env");
+
   // Lancer la synchro foreground (app ouverte)
   SyncService().start();
 
@@ -19,6 +23,7 @@ void main() async {
     callbackDispatcher,
     isInDebugMode: false, // Passe à true pour debug
   );
+
   await Workmanager().registerPeriodicTask(
     'syncTaskUniqueName',
     syncTaskName,
@@ -27,8 +32,8 @@ void main() async {
     constraints: Constraints(networkType: NetworkType.connected),
   );
 
-  final _storage = FlutterSecureStorage();
-  final token = await _storage.read(key: 'token');
+  final storage = FlutterSecureStorage();
+  final token = await storage.read(key: 'token');
 
   runApp(MyApp(initialRoute: token != null ? Routes.DASHBOARD : Routes.LOGIN));
 }

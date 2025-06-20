@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-//import 'package:fl_chart/fl_chart.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../controllers/product_controller.dart';
-import '../../widgets/app_drawer.dart';
-import '../../widgets/app_bottom_nav_bar.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -16,12 +13,6 @@ class ReportsScreen extends StatelessWidget {
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-        backgroundColor: Color(0xFF6C63FF),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: Row(
         children: [
           Expanded(
@@ -50,7 +41,6 @@ class ReportsScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: isTablet ? null : AppBottomNavBar(),
     );
   }
 
@@ -78,7 +68,7 @@ class ReportsScreen extends StatelessWidget {
               'Total Sales',
               '\$${totalSales.toStringAsFixed(2)}',
               Icons.trending_up,
-              Color(0xFF6C63FF),
+              Color(0xFF6C4BFF),
             ),
           ),
           const SizedBox(width: 16),

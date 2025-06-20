@@ -26,7 +26,7 @@ class AddCategoryScreen extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Color(0xFF6C63FF), width: 2),
+        borderSide: BorderSide(color: Color(0xFF6C4BFF), width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -44,7 +44,7 @@ class AddCategoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Add Category'),
-        backgroundColor: Color(0xFF6C63FF),
+        backgroundColor: Color(0xFF6C4BFF),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -86,11 +86,11 @@ class AddCategoryScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF5A52E0)],
+                    colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFF6C63FF).withOpacity(0.3),
+                      color: Color(0xFF6C4BFF).withOpacity(0.3),
                       blurRadius: 8,
                       offset: Offset(0, 4),
                     ),
@@ -110,8 +110,33 @@ class AddCategoryScreen extends StatelessWidget {
                       );
 
                       try {
-                        await categoryController.addCategory(category);
-                        Get.back();
+                        final response = await categoryController
+                            .addCategoryWithResponse(category);
+                        if (response.success) {
+                          Get.back(result: true);
+                          Get.snackbar(
+                            'Succès',
+                            response.message ?? 'Catégorie ajoutée avec succès',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.green,
+                            colorText: Colors.white,
+                          );
+                        } else {
+                          String errorMsg =
+                              response.message ??
+                              'Erreur lors de l\'ajout de la catégorie';
+                          if (response.errors != null &&
+                              response.errors!.isNotEmpty) {
+                            errorMsg = response.errors!.values.first.first;
+                          }
+                          Get.snackbar(
+                            'Erreur',
+                            errorMsg,
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.red,
+                            colorText: Colors.white,
+                          );
+                        }
                       } catch (e) {
                         Get.snackbar(
                           'Error',

@@ -1,5 +1,3 @@
-import 'product.dart';
-
 class Category {
   final int id;
   final String name;

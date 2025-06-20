@@ -1,6 +1,5 @@
 import '../models/product.dart';
 import '../models/transaction.dart';
-import '../models/category.dart';
 
 class DashboardData {
   final List<Product> lowStockProducts;

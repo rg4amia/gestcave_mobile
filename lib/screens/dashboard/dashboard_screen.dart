@@ -1,106 +1,285 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/dashboard_controller.dart';
-import '../../widgets/app_drawer.dart';
 import '../../widgets/app_bottom_nav_bar.dart';
 import 'package:intl/intl.dart';
+import '../products/products_screen.dart';
+import '../transactions/transactions_screen.dart';
+import '../categories/categories_screen.dart';
+import '../reports/reports_screen.dart';
+import '../../routes/app_pages.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = const [
+    DashboardMainView(),
+    ProductsScreen(),
+    TransactionsScreen(),
+    CategoriesScreen(),
+    ReportsScreen(),
+  ];
+
+  void _onNavBarTap(int index) {
+    setState(() {
+      _selectedIndex = index;
+      print('index: $_selectedIndex');
+    });
+  }
+
+  AppBar _appBar(int index) {
+    switch (index) {
+      case 0:
+        return AppBar(
+          title: Text('Dashbord'),
+          backgroundColor: Color(0xFF6C4BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        );
+      case 1:
+        return AppBar(
+          title: Text('Produits'),
+          backgroundColor: Color(0xFF6C4BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => Get.toNamed(Routes.ADD_PRODUCT),
+            ),
+          ],
+        );
+      case 2:
+        return AppBar(
+          title: Text('Transactions'),
+          backgroundColor: Color(0xFF6C4BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => Get.toNamed(Routes.ADD_TRANSACTION),
+            ),
+          ],
+        );
+      case 3:
+        return AppBar(
+          title: Text('Catégories'),
+          backgroundColor: Color(0xFF6C4BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => Get.toNamed(Routes.ADD_CATEGORY),
+            ),
+          ],
+        );
+      case 4:
+        return AppBar(
+          title: Text('Rapports'),
+          backgroundColor: Color(0xFF6C4BFF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        );
+      default:
+        return AppBar();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: _appBar(_selectedIndex),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavBarTap,
+      ),
+    );
+  }
+}
+
+class DashboardMainView extends StatelessWidget {
+  const DashboardMainView({super.key});
 
   @override
   Widget build(BuildContext context) {
     final dashboardController = Get.find<DashboardController>();
     final currencyFormat = NumberFormat.currency(symbol: 'F');
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
-        color: Color(0xFF6C4BFF),
-        onRefresh: () => dashboardController.fetchDashboardData(),
-        child: Obx(() {
-          if (dashboardController.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return RefreshIndicator(
+      color: Color(0xFF6C4BFF),
+      onRefresh: () => dashboardController.fetchDashboardData(),
+      child: Obx(() {
+        if (dashboardController.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          if (dashboardController.error.isNotEmpty) {
-            return Center(
-              child: Text(
-                dashboardController.error.value,
-                style: TextStyle(color: Colors.red),
+        if (dashboardController.error.isNotEmpty) {
+          return Center(
+            child: Text(
+              dashboardController.error.value,
+              style: TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final data = dashboardController.dashboardData.value;
+        if (data == null) {
+          return const Center(child: Text('No data available'));
+        }
+
+        return SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(24.0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 5),
+                    _buildSummaryCard(
+                      context,
+                      'Nombre total de produit',
+                      data.totalProducts.toString(),
+                      Icons.inventory_2,
+                      () {},
+                      subtitle:
+                          'Totale: ${currencyFormat.format(data.totalValue)}',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSummaryCard(
+                      context,
+                      'Stock Alerts',
+                      data.stockAlerts.total.toString(),
+                      Icons.warning_amber_rounded,
+                      () {},
+                      subtitle:
+                          'Critical: ${data.stockAlerts.critical}, Warning: ${data.stockAlerts.warning}',
+                      color: data.stockAlerts.total > 0 ? Colors.red : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSummaryCard(
+                      context,
+                      'Monthly Sales',
+                      currencyFormat.format(data.financialStats.monthlySales),
+                      Icons.trending_up,
+                      () {},
+                      subtitle:
+                          'Profit: ${currencyFormat.format(data.financialStats.monthlyProfit)}',
+                      color: Color(0xFF4CAF50),
+                    ),
+                    const SizedBox(height: 32),
+                    const Text(
+                      'Transactions',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ]),
+                ),
               ),
-            );
-          }
-
-          final data = dashboardController.dashboardData.value;
-          if (data == null) {
-            return const Center(child: Text('No data available'));
-          }
-
-          return SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.all(24.0),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      const SizedBox(height: 5),
-                      _buildSummaryCard(
-                        context,
-                        'Nombre total de produit',
-                        data.totalProducts.toString(),
-                        Icons.inventory_2,
-                        () => Get.toNamed('/products'),
-                        subtitle:
-                            'Totale: ${currencyFormat.format(data.totalValue)}',
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final transaction = data.recentTransactions[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[200]!),
                       ),
-                      const SizedBox(height: 16),
-                      _buildSummaryCard(
-                        context,
-                        'Stock Alerts',
-                        data.stockAlerts.total.toString(),
-                        Icons.warning_amber_rounded,
-                        () {},
-                        subtitle:
-                            'Critical: ${data.stockAlerts.critical}, Warning: ${data.stockAlerts.warning}',
-                        color: data.stockAlerts.total > 0 ? Colors.red : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSummaryCard(
-                        context,
-                        'Monthly Sales',
-                        currencyFormat.format(data.financialStats.monthlySales),
-                        Icons.trending_up,
-                        () => Get.toNamed('/reports'),
-                        subtitle:
-                            'Profit: ${currencyFormat.format(data.financialStats.monthlyProfit)}',
-                        color: Color(0xFF4CAF50),
-                      ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Transactions',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.all(16),
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: transaction.type == 'in'
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.red[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            transaction.type == 'in'
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: transaction.type == 'in'
+                                ? Colors.green[500]
+                                : Colors.red,
+                            size: 24,
+                          ),
+                        ),
+                        title: Text(
+                          transaction.product?.name ?? 'Unknown Product',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${transaction.quantity} units - ${DateFormat('yyyy-MM-dd HH:mm').format(transaction.createdAt)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: transaction.type == 'in'
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.red[50],
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            '${transaction.type == 'in' ? '+' : '-'}${transaction.quantity}',
+                            style: TextStyle(
+                              color: transaction.type == 'in'
+                                  ? Colors.green[500]
+                                  : Colors.red,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ]),
-                  ),
+                    );
+                  }, childCount: data.recentTransactions.length),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final transaction = data.recentTransactions[index];
-                      return Container(
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(24.0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const Text(
+                      'Top Products',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ...data.topProducts.map(
+                      (product) => Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -109,27 +288,8 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         child: ListTile(
                           contentPadding: EdgeInsets.all(16),
-                          leading: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: transaction.type == 'in'
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.red[50],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              transaction.type == 'in'
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              color: transaction.type == 'in'
-                                  ? Colors.green[500]
-                                  : Colors.red,
-                              size: 24,
-                            ),
-                          ),
                           title: Text(
-                            transaction.product?.name ?? 'Unknown Product',
+                            product.product.name,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -137,99 +297,32 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           subtitle: Text(
-                            '${transaction.quantity} units - ${DateFormat('yyyy-MM-dd HH:mm').format(transaction.createdAt)}',
+                            'Total Quantity: ${product.totalQuantity}',
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 14,
                             ),
                           ),
-                          trailing: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: transaction.type == 'in'
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.red[50],
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              '${transaction.type == 'in' ? '+' : '-'}${transaction.quantity}',
-                              style: TextStyle(
-                                color: transaction.type == 'in'
-                                    ? Colors.green[500]
-                                    : Colors.red,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }, childCount: data.recentTransactions.length),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(24.0),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      const Text(
-                        'Top Products',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ...data.topProducts.map(
-                        (product) => Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey[200]!),
-                          ),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.all(16),
-                            title: Text(
-                              product.product.name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Total Quantity: ${product.totalQuantity}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                            trailing: Text(
-                              product.totalSales != null
-                                  ? currencyFormat.format(product.totalSales)
-                                  : '-',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
+                          trailing: Text(
+                            product.totalSales != null
+                                ? currencyFormat.format(product.totalSales)
+                                : '-',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
                             ),
                           ),
                         ),
                       ),
-                    ]),
-                  ),
+                    ),
+                  ]),
                 ),
-              ],
-            ),
-          );
-        }),
-      ),
-      bottomNavigationBar: AppBottomNavBar(),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 

@@ -30,7 +30,7 @@ class AddTransactionScreen extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Color(0xFF6C63FF), width: 2),
+        borderSide: BorderSide(color: Color(0xFF6C4BFF), width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -49,7 +49,7 @@ class AddTransactionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Ajouter transaction'),
-        backgroundColor: Color(0xFF6C63FF),
+        backgroundColor: Color(0xFF6C4BFF),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -116,7 +116,7 @@ class AddTransactionScreen extends StatelessWidget {
                       backgroundColor: MaterialStateProperty.resolveWith<Color>(
                         (Set<MaterialState> states) {
                           if (states.contains(MaterialState.selected)) {
-                            return Color(0xFF6C63FF);
+                            return Color(0xFF6C4BFF);
                           }
                           return Colors.transparent;
                         },
@@ -194,19 +194,19 @@ class AddTransactionScreen extends StatelessWidget {
                         _buildDetailRow(
                           'Stock Actuel',
                           '${product.stockQuantity} units',
-                          product.isLowStock ? Colors.red : Color(0xFF6C63FF),
+                          product.isLowStock ? Colors.red : Color(0xFF6C4BFF),
                         ),
                         SizedBox(height: 8),
                         _buildDetailRow(
                           'Prix d\'achat',
                           '${product.purchasePrice.toStringAsFixed(2)} F',
-                          Color(0xFF6C63FF),
+                          Color(0xFF6C4BFF),
                         ),
                         SizedBox(height: 8),
                         _buildDetailRow(
                           'Prix de vente',
                           '\$${product.salePrice.toStringAsFixed(2)} F',
-                          Color(0xFF6C63FF),
+                          Color(0xFF6C4BFF),
                         ),
                       ],
                     ),
@@ -220,11 +220,11 @@ class AddTransactionScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF5A52E0)],
+                    colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFF6C63FF).withOpacity(0.3),
+                      color: Color(0xFF6C4BFF).withOpacity(0.3),
                       blurRadius: 8,
                       offset: Offset(0, 4),
                     ),
@@ -252,9 +252,33 @@ class AddTransactionScreen extends StatelessWidget {
                         notes: _notesController.text.trim(),
                       );
 
-                      final success = await transactionController
-                          .addTransaction(transaction);
-                      Get.back(result: success);
+                      final response = await transactionController
+                          .addTransactionWithResponse(transaction);
+                      if (response.success) {
+                        Get.back(result: true);
+                        Get.snackbar(
+                          'Succès',
+                          response.message ?? 'Transaction ajoutée avec succès',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
+                        );
+                      } else {
+                        String errorMsg =
+                            response.message ??
+                            'Erreur lors de l\'ajout de la transaction';
+                        if (response.errors != null &&
+                            response.errors!.isNotEmpty) {
+                          errorMsg = response.errors!.values.first.first;
+                        }
+                        Get.snackbar(
+                          'Erreur',
+                          errorMsg,
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(

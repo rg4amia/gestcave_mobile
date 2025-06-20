@@ -1,65 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:titled_navigation_bar/titled_navigation_bar.dart';
 
 class AppBottomNavBar extends StatelessWidget {
-  const AppBottomNavBar({super.key});
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  const AppBottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return NavigationBar(
-      selectedIndex: _getSelectedIndex(Get.currentRoute),
-      onDestinationSelected: (index) {
-        switch (index) {
-          case 0:
-            Get.toNamed('/dashboard');
-            break;
-          case 1:
-            Get.toNamed('/products');
-            break;
-          case 2:
-            Get.toNamed('/transactions');
-            break;
-          case 3:
-            Get.toNamed('/categories');
-            break;
-          case 4:
-            Get.toNamed('/reports');
-            break;
-        }
-      },
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.dashboard_outlined),
-          selectedIcon: Icon(Icons.dashboard),
-          label: 'Dashboard',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.inventory_2_outlined),
-          selectedIcon: Icon(Icons.inventory_2),
-          label: 'Products',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.swap_horiz_outlined),
-          selectedIcon: Icon(Icons.swap_horiz),
-          label: 'Transactions',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.category_outlined),
-          selectedIcon: Icon(Icons.category),
-          label: 'Categories',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.analytics_outlined),
-          selectedIcon: Icon(Icons.analytics),
-          label: 'Reports',
-        ),
-      ],
-    );
-  }
-
-  int _getSelectedIndex(String route) {
+  static int getSelectedIndex(String route) {
     switch (route) {
       case '/dashboard':
         return 0;
@@ -74,5 +25,35 @@ class AppBottomNavBar extends StatelessWidget {
       default:
         return 0;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TitledBottomNavigationBar(
+      currentIndex: currentIndex,
+      onTap: onTap,
+      items: [
+        TitledNavigationBarItem(
+          title: Text('Dashboard'),
+          leading: Icon(Icons.dashboard_outlined),
+        ),
+        TitledNavigationBarItem(
+          title: Text('Products'),
+          leading: Icon(Icons.inventory_2_outlined),
+        ),
+        TitledNavigationBarItem(
+          title: Text('Transactions'),
+          leading: Icon(Icons.swap_horiz_outlined),
+        ),
+        TitledNavigationBarItem(
+          title: Text('Categories'),
+          leading: Icon(Icons.category_outlined),
+        )
+       /*  TitledNavigationBarItem(
+          title: Text('Reports'),
+          leading: Icon(Icons.analytics_outlined),
+        ), */
+      ],
+    );
   }
 }

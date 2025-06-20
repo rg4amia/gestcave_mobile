@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
 import '../models/paginated_response_transaction.dart';
+import '../models/api_response.dart';
 
 class TransactionController extends GetxController {
   final ApiService _apiService = ApiService();
@@ -88,6 +89,19 @@ class TransactionController extends GetxController {
       print('Failed to add transaction: $e');
       return false;
     }
+  }
+
+  Future<ApiResponse<Transaction>> addTransactionWithResponse(
+    Transaction transaction,
+  ) async {
+    final response = await _apiService.createTransactionWithResponse(
+      transaction,
+    );
+    if (response.success && response.data != null) {
+      transactions.insert(0, response.data!);
+      totalTransactions.value++;
+    }
+    return response;
   }
 
   void refreshTransactions() {

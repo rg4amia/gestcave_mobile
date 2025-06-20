@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/transaction_controller.dart';
-import '../../widgets/app_drawer.dart';
-import '../../widgets/app_bottom_nav_bar.dart';
-import '../../routes/app_pages.dart';
 
 class TransactionsScreen extends StatelessWidget {
   const TransactionsScreen({super.key});
@@ -15,7 +12,7 @@ class TransactionsScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     Future<void> _navigateToAddTransaction(BuildContext context) async {
-      final result = await Get.toNamed(Routes.ADD_TRANSACTION);
+      final result = await Get.toNamed('/add-transaction');
       if (result == true) {
         Get.snackbar(
           'Succès',
@@ -24,30 +21,11 @@ class TransactionsScreen extends StatelessWidget {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-      } else if (result == false) {
-        Get.snackbar(
-          'Erreur',
-          'Échec de l\'ajout de la transaction',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        transactionController.refreshTransactions();
       }
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transactions'),
-        backgroundColor: Color(0xFF6C4BFF),
-        foregroundColor: Colors.white,
-        scrolledUnderElevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToAddTransaction(context),
-          ),
-        ],
-      ),
       body: Row(
         children: [
           Expanded(
@@ -168,14 +146,14 @@ class TransactionsScreen extends StatelessWidget {
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Image.asset(
-                                                  'assets/images/Home.png',
+                                                  'assets/images/logo.png',
                                                   width: 40,
                                                   height: 40,
                                                   fit: BoxFit.cover,
                                                 ),
                                       )
                                     : Image.asset(
-                                        'assets/images/Home.png',
+                                        'assets/images/logo.png',
                                         width: 40,
                                         height: 40,
                                         fit: BoxFit.cover,
@@ -254,29 +232,6 @@ class TransactionsScreen extends StatelessWidget {
             }),
           ),
         ],
-      ),
-      bottomNavigationBar: isTablet ? null : AppBottomNavBar(),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
-          ),
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFF6C4BFF).withOpacity(0.3),
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => _navigateToAddTransaction(context),
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Ajouter', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
       ),
     );
   }

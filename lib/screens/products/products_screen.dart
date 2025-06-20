@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/product_controller.dart';
-import '../../widgets/app_drawer.dart';
-import '../../widgets/app_bottom_nav_bar.dart';
 import '../../routes/app_pages.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -44,11 +42,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width > 600;
+    Future<void> _navigateToAddProduct(BuildContext context) async {
+      print(" retour save produit");
+      final result = await Get.toNamed(Routes.ADD_PRODUCT);
+
+      print(result);
+      if (result == true) {
+        Get.snackbar(
+          'Succès',
+          'Produit ajouté avec succès',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+
+      productController.refreshProducts();
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      /*  appBar: AppBar(
         title: Obx(
           () => Text('Products (${productController.filteredProducts.length})'),
         ),
@@ -58,10 +72,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => Get.toNamed(Routes.ADD_PRODUCT),
+            onPressed: () => _navigateToAddProduct(context),
           ),
         ],
-      ),
+      ), */
       body: Column(
         children: [
           // Barre de recherche et filtres
@@ -378,7 +392,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             ],
                           ),
                           child: ElevatedButton.icon(
-                            onPressed: () => Get.toNamed(Routes.ADD_PRODUCT),
+                            onPressed: () => _navigateToAddProduct(context),
                             icon: const Icon(Icons.add),
                             label: const Text('Ajouter Produits'),
                             style: ElevatedButton.styleFrom(
@@ -576,29 +590,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             }),
           ),
         ],
-      ),
-      bottomNavigationBar: isTablet ? null : AppBottomNavBar(),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
-          ),
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFF6C4BFF).withOpacity(0.3),
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => Get.toNamed(Routes.ADD_PRODUCT),
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Ajouter', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
       ),
     );
   }
