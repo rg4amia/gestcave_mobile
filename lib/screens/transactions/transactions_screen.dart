@@ -57,14 +57,17 @@ class TransactionsScreen extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFF6C4BFF), Color(0xFF5A52E0)],
+                            colors: [
+                              const Color(0xFF6C4BFF),
+                              const Color(0xFF5A52E0),
+                            ],
                           ),
-                          borderRadius: BorderRadius.circular(100),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Color(0xFF6C4BFF).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
+                              color: const Color(0xFF6C4BFF).withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),

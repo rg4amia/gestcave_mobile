@@ -3,7 +3,7 @@ import '../models/dashboard.dart';
 import '../services/api_service.dart';
 
 class DashboardController extends GetxController {
-  final ApiService _apiService = Get.find<ApiService>();
+  late final ApiService _apiService;
   final Rx<DashboardData?> dashboardData = Rx<DashboardData?>(null);
   final RxBool isLoading = false.obs;
   final RxString error = ''.obs;
@@ -11,6 +11,7 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _apiService = Get.find<ApiService>();
     fetchDashboardData();
   }
 

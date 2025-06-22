@@ -284,7 +284,7 @@ class AddProductScreen extends StatelessWidget {
                       )
                     : Container(
                         width: double.infinity,
-                        height: 200,
+                        height: 130,
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'config/theme.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'services/sync_service.dart';
 import 'services/background_sync.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'services/connectivity_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +22,13 @@ void main() async {
 
   // Charger les variables d'environnement
   await dotenv.load(fileName: ".env");
+
+  // Initialiser Hive
+  await Hive.initFlutter();
+
+  // Initialiser les services via InitialBinding
+  InitialBinding().dependencies();
+  await InitialBinding.initializeAsyncServices();
 
   // Lancer la synchro foreground (app ouverte)
   SyncService().start();
@@ -39,8 +49,21 @@ void main() async {
 
   final storage = FlutterSecureStorage();
   final token = await storage.read(key: 'token');
+  final hasSeenOnboarding = await storage.read(key: 'has_seen_onboarding');
 
-  runApp(MyApp(initialRoute: token != null ? Routes.DASHBOARD : Routes.LOGIN));
+  String initialRoute;
+  if (hasSeenOnboarding == null) {
+    // Première fois - afficher l'onboarding
+    initialRoute = Routes.ONBOARDING;
+  } else if (token != null) {
+    // Utilisateur connecté
+    initialRoute = Routes.DASHBOARD;
+  } else {
+    // Utilisateur non connecté
+    initialRoute = Routes.LOGIN;
+  }
+
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
@@ -67,7 +90,6 @@ class MyApp extends StatelessWidget {
         ],
         child: child!,
       ),
-      initialBinding: InitialBinding(),
     );
   }
 }

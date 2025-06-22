@@ -4,16 +4,20 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:get/get.dart';
 import '../models/product.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/sync_queue.dart';
 import '../models/dashboard.dart';
 import 'database_service.dart';
+import 'hive_cache_service.dart';
 import '../models/paginated_response_product.dart';
 import '../models/paginated_response_category.dart';
 import '../models/paginated_response_transaction.dart';
 import '../models/api_response.dart';
+import 'sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   final String baseUrl =
@@ -21,10 +25,24 @@ class ApiService {
   final dio.Dio _dio = dio.Dio();
   String? _token;
   final _storage = FlutterSecureStorage();
+  HiveCacheService? _cacheService;
 
   ApiService() {
     _initializeToken();
     _setupInterceptors();
+  }
+
+  Future<void> _ensureCacheServiceInitialized() async {
+    if (_cacheService == null) {
+      try {
+        _cacheService = Get.find<HiveCacheService>();
+      } catch (e) {
+        // If HiveCacheService is not found, initialize it with SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        Get.lazyPut<HiveCacheService>(() => HiveCacheService(prefs));
+        _cacheService = Get.find<HiveCacheService>();
+      }
+    }
   }
 
   Future<void> _initializeToken() async {
@@ -131,6 +149,34 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String password,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/register',
+        data: {
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': password,
+        },
+      );
+
+      await _saveTokens(
+        token: response.data['token'],
+        refreshToken: response.data['refresh_token'],
+      );
+
+      return response.data;
+    } catch (e) {
+      print('Registration failed: $e');
+      throw Exception('Registration failed: $e');
+    }
+  }
+
   Future<void> logout() async {
     try {
       _token = await _storage.read(key: 'token');
@@ -151,6 +197,7 @@ class ApiService {
   }
 
   Future<PaginatedResponse> getProducts({int page = 1}) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.get(
@@ -164,19 +211,17 @@ class ApiService {
         ),
       );
 
+      print('response produit : $response.data');
+
       final paginatedResponse = PaginatedResponse.fromJson(response.data);
 
-      // Save to local database
-      final dbService = DatabaseService();
-      for (var product in paginatedResponse.products) {
-        await dbService.saveProduct(product);
-      }
+      // Save to cache
+      await _cacheService!.cacheProducts(paginatedResponse.products);
       return paginatedResponse;
     } catch (e) {
       print('error: $e');
-      // Load from local database
-      final dbService = DatabaseService();
-      final products = await dbService.getProducts();
+      // Load from cache
+      final products = await _cacheService!.getProducts();
       return PaginatedResponse(
         products: products,
         total: products.length,
@@ -187,6 +232,7 @@ class ApiService {
   }
 
   Future<List<Product>> getLowStockProducts() async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.get(
@@ -200,8 +246,7 @@ class ApiService {
       );
       return (response.data as List).map((p) => Product.fromJson(p)).toList();
     } catch (e) {
-      final dbService = DatabaseService();
-      final products = await dbService.getProducts();
+      final products = await _cacheService!.getProducts();
       return products.where((p) => p.isLowStock).toList();
     }
   }
@@ -210,6 +255,7 @@ class ApiService {
     Product product, {
     File? image,
   }) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       dio.FormData formData = dio.FormData.fromMap(product.toJson());
@@ -248,7 +294,7 @@ class ApiService {
       final newProduct = Product.fromJson(
         response.data['data'] ?? response.data,
       );
-      await DatabaseService().saveProduct(newProduct);
+      await _cacheService!.addProduct(newProduct);
       return ApiResponse<Product>(
         data: newProduct,
         errors: null,
@@ -269,6 +315,7 @@ class ApiService {
   }
 
   Future<PaginatedTransactionResponse> getTransactions({int page = 1}) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.get(
@@ -284,14 +331,12 @@ class ApiService {
       final paginatedResponse = PaginatedTransactionResponse.fromJson(
         response.data,
       );
-      final dbService = DatabaseService();
-      for (var transaction in paginatedResponse.transactions) {
-        await dbService.saveTransaction(transaction);
-      }
+
+      await _cacheService!.cacheTransactions(paginatedResponse.transactions);
       return paginatedResponse;
     } catch (e) {
-      final dbService = DatabaseService();
-      final transactions = await dbService.getTransactions();
+      print('error transaction : $e');
+      final transactions = await _cacheService!.getTransactions();
       return PaginatedTransactionResponse(
         transactions: transactions,
         total: transactions.length,
@@ -305,6 +350,7 @@ class ApiService {
   }
 
   Future<Transaction> createTransaction(Transaction transaction) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.post(
@@ -319,7 +365,7 @@ class ApiService {
       );
       print('response : ${response.data}');
       final newTransaction = Transaction.fromJson(response.data);
-      await DatabaseService().saveTransaction(newTransaction);
+      await _cacheService!.addTransaction(newTransaction);
       return newTransaction;
     } catch (e) {
       await DatabaseService().addToSyncQueue(
@@ -353,6 +399,7 @@ class ApiService {
   }
 
   Future<PaginatedCategoryResponse> getCategories({int page = 1}) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.get(
@@ -362,10 +409,10 @@ class ApiService {
       final paginatedResponse = PaginatedCategoryResponse.fromJson(
         response.data,
       );
-      await DatabaseService().saveCategories(paginatedResponse.categories);
+      await _cacheService!.cacheCategories(paginatedResponse.categories);
       return paginatedResponse;
     } catch (e) {
-      final categories = await DatabaseService().getCategories();
+      final categories = await _cacheService!.getCategories();
       return PaginatedCategoryResponse(
         categories: categories,
         total: categories.length,
@@ -381,6 +428,7 @@ class ApiService {
   Future<ApiResponse<Category>> createCategoryWithResponse(
     Category category,
   ) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.post(
@@ -402,7 +450,7 @@ class ApiService {
       final newCategory = Category.fromJson(
         response.data['data'] ?? response.data,
       );
-      await DatabaseService().saveCategory(newCategory);
+      await _cacheService!.addCategory(newCategory);
       return ApiResponse<Category>(
         data: newCategory,
         errors: null,
@@ -422,10 +470,11 @@ class ApiService {
   }
 
   Future<void> deleteCategory(int id) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       await _dio.delete('$baseUrl/categories/$id');
-      await DatabaseService().deleteCategory(id);
+      await _cacheService!.removeCategory(id);
     } catch (e) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
@@ -440,10 +489,11 @@ class ApiService {
   }
 
   Future<void> deleteProduct(int id) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       await _dio.delete('$baseUrl/products/$id');
-      await DatabaseService().deleteProduct(id);
+      await _cacheService!.removeProduct(id);
     } catch (e) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
@@ -458,10 +508,11 @@ class ApiService {
   }
 
   Future<void> deleteTransaction(int id) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       await _dio.delete('$baseUrl/transactions/$id');
-      await DatabaseService().deleteTransaction(id);
+      await _cacheService!.removeTransaction(id);
     } catch (e) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
@@ -629,6 +680,7 @@ class ApiService {
   }
 
   Future<DashboardData> getDashboardData() async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       var url = '$baseUrl/dashboard';
@@ -641,9 +693,18 @@ class ApiService {
           },
         ),
       );
-      return DashboardData.fromJson(response.data);
+      //print('verif data $response.data');
+      final dashboardData = DashboardData.fromJson(response.data);
+      //print('verif data $dashboardData.totalValue');
+      await _cacheService!.cacheDashboard(dashboardData);
+      return dashboardData;
     } catch (e) {
       print('error get dashboard data : $e');
+      // Essayer de récupérer depuis le cache
+      final cachedDashboard = await _cacheService!.getDashboard();
+      if (cachedDashboard != null) {
+        return cachedDashboard;
+      }
       throw Exception('Failed to get dashboard data: $e');
     }
   }
@@ -651,6 +712,7 @@ class ApiService {
   Future<ApiResponse<Transaction>> createTransactionWithResponse(
     Transaction transaction,
   ) async {
+    await _ensureCacheServiceInitialized();
     try {
       _token = await _storage.read(key: 'token');
       final response = await _dio.post(
@@ -678,7 +740,7 @@ class ApiService {
       final newTransaction = Transaction.fromJson(
         response.data['data'] ?? response.data,
       );
-      await DatabaseService().saveTransaction(newTransaction);
+      await _cacheService!.addTransaction(newTransaction);
       return ApiResponse<Transaction>(
         data: newTransaction,
         errors: null,
@@ -695,5 +757,22 @@ class ApiService {
         success: false,
       );
     }
+  }
+
+  /// Vide le token d'authentification
+  Future<void> clearAuthToken() async {
+    await _clearTokens();
+  }
+
+  /// Vide toutes les données de la base de données locale
+  Future<void> clearAllData() async {
+    await _ensureCacheServiceInitialized();
+    await _cacheService!.clearCache();
+  }
+
+  /// Arrête la synchronisation en arrière-plan
+  Future<void> stopBackgroundSync() async {
+    final syncService = SyncService();
+    syncService.stop();
   }
 }

@@ -4,6 +4,7 @@ import '../../controllers/transaction_controller.dart';
 import '../../controllers/product_controller.dart';
 import '../../models/transaction.dart';
 import '../../models/product.dart';
+import '../../services/hive_cache_service.dart';
 
 class AddTransactionScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
@@ -45,6 +46,7 @@ class AddTransactionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final productController = Get.find<ProductController>();
     final transactionController = Get.find<TransactionController>();
+    final cacheService = Get.find<HiveCacheService>();
 
     return Scaffold(
       appBar: AppBar(
@@ -113,22 +115,22 @@ class AddTransactionScreen extends StatelessWidget {
                       _selectedType.value = newSelection.first;
                     },
                     style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                        (Set<MaterialState> states) {
-                          if (states.contains(MaterialState.selected)) {
-                            return Color(0xFF6C4BFF);
-                          }
-                          return Colors.transparent;
-                        },
-                      ),
-                      foregroundColor: MaterialStateProperty.resolveWith<Color>(
-                        (Set<MaterialState> states) {
-                          if (states.contains(MaterialState.selected)) {
-                            return Colors.white;
-                          }
-                          return Colors.black87;
-                        },
-                      ),
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>((
+                        Set<WidgetState> states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Color(0xFF6C4BFF);
+                        }
+                        return Colors.transparent;
+                      }),
+                      foregroundColor: WidgetStateProperty.resolveWith<Color>((
+                        Set<WidgetState> states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.white;
+                        }
+                        return Colors.black87;
+                      }),
                     ),
                   ),
                 ),
@@ -250,6 +252,8 @@ class AddTransactionScreen extends StatelessWidget {
                         purchasePrice: product.purchasePrice,
                         salePrice: product.salePrice,
                         notes: _notesController.text.trim(),
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
                       );
 
                       final response = await transactionController
@@ -263,6 +267,15 @@ class AddTransactionScreen extends StatelessWidget {
                           backgroundColor: Colors.green,
                           colorText: Colors.white,
                         );
+
+                        // Récupération
+                        final products = await cacheService.getProducts();
+
+                        // Ajout
+                        await cacheService.addProduct(product);
+
+                        // Statistiques
+                        final stats = await cacheService.getCacheStats();
                       } else {
                         String errorMsg =
                             response.message ??

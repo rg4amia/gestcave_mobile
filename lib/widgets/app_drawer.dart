@@ -95,11 +95,51 @@ class AppDrawer extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextButton.icon(
               onPressed: () async {
-                await Get.find<AuthController>().logout();
-                Get.offAllNamed('/');
+                // Afficher une boîte de dialogue de confirmation
+                final shouldLogout = await Get.dialog<bool>(
+                  AlertDialog(
+                    title: const Text('Déconnexion'),
+                    content: const Text(
+                      'Êtes-vous sûr de vouloir vous déconnecter ? '
+                      'Toutes les données locales seront supprimées.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Get.back(result: false),
+                        child: const Text('Annuler'),
+                      ),
+                      TextButton(
+                        onPressed: () => Get.back(result: true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colorScheme.error,
+                        ),
+                        child: const Text('Déconnexion'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldLogout == true) {
+                  // Afficher un indicateur de chargement
+                  Get.dialog(
+                    const Center(child: CircularProgressIndicator()),
+                    barrierDismissible: false,
+                  );
+
+                  try {
+                    await Get.find<AuthController>().logout();
+                  } catch (e) {
+                    Get.back(); // Fermer l'indicateur de chargement
+                    Get.snackbar(
+                      'Erreur',
+                      'Erreur lors de la déconnexion: $e',
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                }
               },
               icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
+              label: const Text('Déconnexion'),
               style: TextButton.styleFrom(foregroundColor: colorScheme.error),
             ),
           ),

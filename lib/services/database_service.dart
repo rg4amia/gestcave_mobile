@@ -146,4 +146,13 @@ class DatabaseService {
     final db = await database;
     await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
   }
+
+  /// Vide toutes les données de la base de données
+  Future<void> clearAllData() async {
+    final db = await database;
+    await db.delete('products');
+    await db.delete('transactions');
+    await db.delete('categories');
+    await db.delete('sync_queue');
+  }
 }

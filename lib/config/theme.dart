@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Material 3 color scheme
@@ -28,29 +27,77 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          side: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         filled: true,
         fillColor: Colors.grey.shade50,
       ),
-      textTheme: GoogleFonts.outfitTextTheme(),
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        displayMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        displaySmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        headlineLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        headlineMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        titleSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        bodySmall: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w400),
+        labelLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 
@@ -74,29 +121,77 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.grey.shade800,
-            width: 1,
-          ),
+          side: BorderSide(color: Colors.grey.shade800, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         filled: true,
         fillColor: Colors.grey.shade900,
       ),
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        displayMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        displaySmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        headlineLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        headlineMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        titleSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w400,
+        ),
+        bodySmall: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w400),
+        labelLarge: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }

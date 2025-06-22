@@ -106,7 +106,10 @@ class AddCategoryScreen extends StatelessWidget {
                           ' ',
                           '-',
                         ),
+                        totalProducts: '',
                         description: _descriptionController.text.trim(),
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
                       );
 
                       try {

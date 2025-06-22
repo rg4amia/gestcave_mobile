@@ -17,24 +17,19 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      role: json['role'],
+      id: json['id'] ?? 0,
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      role: json['role']?.toString(),
       transactions: json['transactions'] != null
           ? (json['transactions'] as List)
-              .map((t) => Transaction.fromJson(t))
-              .toList()
+                .map((t) => Transaction.fromJson(t))
+                .toList()
           : null,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'role': role,
-    };
+    return {'id': id, 'name': name, 'email': email, 'role': role};
   }
 }

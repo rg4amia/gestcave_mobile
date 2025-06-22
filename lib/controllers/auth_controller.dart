@@ -45,12 +45,40 @@ class AuthController extends GetxController {
         AlertDialog(
           title: Text('Login Failed'),
           content: Text('$e'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Get.back(), child: Text('OK'))],
+        ),
+      );
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    isLoading.value = true;
+    try {
+      final response = await _apiService.register(name, email, password);
+      user.value = User.fromJson(response['user']);
+      token.value = response['token'];
+      refreshToken.value = response['refresh_token'];
+
+      // Save tokens to secure storage
+      await _storage.write(key: 'token', value: token.value);
+      if (refreshToken.value != null) {
+        await _storage.write(key: 'refresh_token', value: refreshToken.value);
+      }
+
+      await _apiService.syncOfflineData(); // Sync offline data on register
+    } catch (e) {
+      Get.dialog(
+        AlertDialog(
+          title: Text('Registration Failed'),
+          content: Text('$e'),
+          actions: [TextButton(onPressed: () => Get.back(), child: Text('OK'))],
         ),
       );
       rethrow;
@@ -61,9 +89,29 @@ class AuthController extends GetxController {
 
   Future<void> logout() async {
     try {
-      await _apiService.logout();
-    } finally {
-      await _clearTokens();
+      // Vider le token d'authentification
+      await _apiService.clearAuthToken();
+
+      // Vider toutes les données de la base de données locale
+      await _apiService.clearAllData();
+
+      // Réinitialiser l'état de l'utilisateur
+      user.value = null;
+      token.value = null;
+      refreshToken.value = null;
+
+      // Arrêter la synchronisation en arrière-plan
+      await _apiService.stopBackgroundSync();
+
+      // Rediriger vers l'écran de connexion
+      Get.offAllNamed(Routes.LOGIN);
+    } catch (e) {
+      print('Erreur lors de la déconnexion: $e');
+      // Même en cas d'erreur, on force la déconnexion
+      user.value = null;
+      token.value = null;
+      refreshToken.value = null;
+      Get.offAllNamed(Routes.LOGIN);
     }
   }
 
