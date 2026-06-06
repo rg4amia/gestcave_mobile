@@ -14,11 +14,12 @@ Cette application mobile ne dépend plus du backend Laravel pour l'authentificat
 1. Crée un projet Supabase.
 2. Dans `Authentication > Providers > Email`, active l'auth email/mot de passe.
 3. Désactive `Confirm email` si tu veux garder le même flux que Laravel, c'est-à-dire connexion immédiate juste après inscription.
-4. Ouvre le SQL Editor et exécute [supabase/schema.sql](/Applications/MAMP/htdocs/gestcave_mobile/supabase/schema.sql:1).
+4. Ouvre le SQL Editor et exécute [backend-supabase/migrations/001_initial_schema.sql](/Applications/MAMP/htdocs/gestcave_mobile/backend-supabase/migrations/001_initial_schema.sql:1).
 5. Copie [gestcave_mobile/.env.example](/Applications/MAMP/htdocs/gestcave_mobile/.env.example:1) vers `.env` et renseigne:
    - `SUPABASE_URL`
    - `SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_STORAGE_BUCKET`
+6. Si tu utilises Codex avec MCP, le projet contient déjà [.mcp.json](/Applications/MAMP/htdocs/gestcave_mobile/.mcp.json:1) pointant vers le serveur MCP Supabase du projet.
 
 ## Migration des données existantes
 
@@ -38,6 +39,7 @@ Si tu veux conserver les données Laravel existantes:
   - mise à jour atomique du stock
   - mémorisation des prix d'achat et de vente
 - Le dashboard mobile s'appuie sur `get_dashboard_data`, qui reproduit les calculs Laravel.
+- Le dossier [backend-supabase](/Applications/MAMP/htdocs/gestcave_mobile/backend-supabase/README.md:1) devient le point d'entrée recommandé pour tout ce qui concerne la migration backend.
 
 ## Vérification rapide
 
