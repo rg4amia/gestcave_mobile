@@ -615,8 +615,9 @@ as $$
     'stockByCategory',
     coalesce(
       (
-        select jsonb_agg(
-          jsonb_build_object(
+        select jsonb_agg(row_to_agg order by row_to_agg->>'created_at' desc)
+        from (
+          select jsonb_build_object(
             'id', c.id,
             'name', c.name,
             'slug', c.slug,
@@ -625,20 +626,20 @@ as $$
             'updated_at', c.updated_at,
             'products_count', count(p.id),
             'products_sum_stock_quantity', coalesce(sum(p.stock_quantity), 0)
-          )
-          order by c.created_at desc
-        )
-        from public.categories c
-        left join public.products p on p.category_id = c.id
-        group by c.id
+          ) as row_to_agg
+          from public.categories c
+          left join public.products p on p.category_id = c.id
+          group by c.id, c.name, c.slug, c.description, c.created_at, c.updated_at
+        ) sub
       ),
       '[]'::jsonb
     ),
     'valueByCategory',
     coalesce(
       (
-        select jsonb_agg(
-          jsonb_build_object(
+        select jsonb_agg(row_to_agg order by row_to_agg->>'created_at' desc)
+        from (
+          select jsonb_build_object(
             'id', c.id,
             'name', c.name,
             'slug', c.slug,
@@ -646,12 +647,11 @@ as $$
             'created_at', c.created_at,
             'updated_at', c.updated_at,
             'products_sum_price', coalesce(sum(p.price * p.stock_quantity), 0)
-          )
-          order by c.created_at desc
-        )
-        from public.categories c
-        left join public.products p on p.category_id = c.id
-        group by c.id
+          ) as row_to_agg
+          from public.categories c
+          left join public.products p on p.category_id = c.id
+          group by c.id, c.name, c.slug, c.description, c.created_at, c.updated_at
+        ) sub
       ),
       '[]'::jsonb
     ),
