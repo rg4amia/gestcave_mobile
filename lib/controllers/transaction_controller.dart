@@ -1,11 +1,10 @@
 import 'package:get/get.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
-import '../models/paginated_response_transaction.dart';
 import '../models/api_response.dart';
 
 class TransactionController extends GetxController {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = Get.find<ApiService>();
   var transactions = <Transaction>[].obs;
   var statistics = {}.obs;
   var isLoading = false.obs;

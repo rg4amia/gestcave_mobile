@@ -5,6 +5,7 @@ const String syncTaskName = 'backgroundSyncTask';
 
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    await ApiService.initializeSupabase();
     final api = ApiService();
     try {
       await api.getProducts();

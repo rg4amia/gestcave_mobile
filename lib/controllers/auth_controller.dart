@@ -6,7 +6,7 @@ import '../services/api_service.dart';
 import '../routes/app_pages.dart';
 
 class AuthController extends GetxController {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = Get.find<ApiService>();
   final _storage = FlutterSecureStorage();
   var user = Rxn<User>();
   var token = RxnString();

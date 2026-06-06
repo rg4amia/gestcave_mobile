@@ -8,7 +8,7 @@ import '../models/api_response.dart';
 enum StockFilter { all, outOfStock, critical, lowStock }
 
 class ProductController extends GetxController {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = Get.find<ApiService>();
   var products = <Product>[].obs;
   var lowStockProducts = <Product>[].obs;
   var isLoading = false.obs;
@@ -75,7 +75,6 @@ class ProductController extends GetxController {
         filtered = filtered.where((p) => p.isLowStock).toList();
         break;
       case StockFilter.all:
-      default:
         // Pas de filtre supplémentaire
         break;
     }

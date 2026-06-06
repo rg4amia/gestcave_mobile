@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -10,9 +9,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'config/theme.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
+import 'services/api_service.dart';
 import 'services/sync_service.dart';
 import 'services/background_sync.dart';
-import 'services/connectivity_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +21,9 @@ void main() async {
 
   // Charger les variables d'environnement
   await dotenv.load(fileName: ".env");
+
+  // Initialiser Supabase avant les services applicatifs
+  await ApiService.initializeSupabase();
 
   // Initialiser Hive
   await Hive.initFlutter();

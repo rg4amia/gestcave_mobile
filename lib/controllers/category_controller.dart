@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../models/api_response.dart';
 
 class CategoryController extends GetxController {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = Get.find<ApiService>();
   var categories = <Category>[].obs;
   var isLoading = false.obs;
 

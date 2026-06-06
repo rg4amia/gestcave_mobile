@@ -1,43 +1,79 @@
-import 'package:dio/dio.dart' as dio;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
-import '../models/product.dart';
-import '../models/transaction.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+
+import '../models/api_response.dart';
 import '../models/category.dart';
-import '../models/sync_queue.dart';
 import '../models/dashboard.dart';
+import '../models/paginated_response_category.dart';
+import '../models/paginated_response_product.dart';
+import '../models/paginated_response_transaction.dart';
+import '../models/product.dart';
+import '../models/sync_queue.dart';
+import '../models/transaction.dart';
 import 'database_service.dart';
 import 'hive_cache_service.dart';
-import '../models/paginated_response_product.dart';
-import '../models/paginated_response_category.dart';
-import '../models/paginated_response_transaction.dart';
-import '../models/api_response.dart';
 import 'sync_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  final String baseUrl =
-      dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api/v1';
-  final dio.Dio _dio = dio.Dio();
-  String? _token;
-  final _storage = FlutterSecureStorage();
+  static const int _productsPerPage = 20;
+  static const int _categoriesPerPage = 10;
+  static const int _transactionsPerPage = 20;
+
+  static bool _supabaseInitialized = false;
+
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   HiveCacheService? _cacheService;
 
-  ApiService() {
-    _initializeToken();
-    _setupInterceptors();
+  static Future<void> initializeSupabase() async {
+    if (!dotenv.isInitialized) {
+      await dotenv.load(fileName: '.env');
+    }
+
+    if (_supabaseInitialized) {
+      return;
+    }
+
+    final url = dotenv.env['SUPABASE_URL'];
+    final publishableKey = dotenv.env['SUPABASE_PUBLISHABLE_KEY'];
+
+    if (url == null ||
+        url.isEmpty ||
+        publishableKey == null ||
+        publishableKey.isEmpty) {
+      throw Exception(
+        'SUPABASE_URL ou SUPABASE_PUBLISHABLE_KEY manquant dans le fichier .env',
+      );
+    }
+
+    await supabase.Supabase.initialize(
+      url: url,
+      publishableKey: publishableKey,
+    );
+
+    _supabaseInitialized = true;
   }
+
+  Future<void> _ensureInitialized() async {
+    await initializeSupabase();
+  }
+
+  supabase.SupabaseClient get _client => supabase.Supabase.instance.client;
+
+  String get _storageBucket =>
+      dotenv.env['SUPABASE_STORAGE_BUCKET'] ?? 'product-images';
 
   Future<void> _ensureCacheServiceInitialized() async {
     if (_cacheService == null) {
       try {
         _cacheService = Get.find<HiveCacheService>();
-      } catch (e) {
-        // If HiveCacheService is not found, initialize it with SharedPreferences
+      } catch (_) {
         final prefs = await SharedPreferences.getInstance();
         Get.lazyPut<HiveCacheService>(() => HiveCacheService(prefs));
         _cacheService = Get.find<HiveCacheService>();
@@ -45,107 +81,260 @@ class ApiService {
     }
   }
 
-  Future<void> _initializeToken() async {
-    _token = await _storage.read(key: 'token');
-  }
-
-  /// Sets up Dio interceptors to handle request headers and errors.
-  ///
-  /// An interceptor is added to include the Authorization header in requests
-  /// if a token is available. It also handles 401 Unauthorized errors by
-  /// attempting to refresh the token using a stored refresh token. If token
-  /// refresh is successful, the original request is retried. In case of
-  /// connection or receive timeouts, a network error exception is thrown.
-  ///
-  /// Throws an exception if there is no refresh token or if session expiration
-  /// occurs after a failed token refresh.
-
-  void _setupInterceptors() {
-    _dio.interceptors.add(
-      dio.InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          if (_token != null) {
-            options.headers['Authorization'] = 'Bearer $_token';
-          }
-          options.headers['Content-Type'] = 'application/json';
-          return handler.next(options);
-        },
-        onError: (dio.DioException e, handler) async {
-          if (e.response?.statusCode == 401) {
-            try {
-              final refreshToken = await _storage.read(key: 'refresh_token');
-              if (refreshToken == null) {
-                throw Exception('No refresh token available');
-              }
-
-              final response = await _dio.post(
-                '$baseUrl/refresh',
-                data: {'refresh_token': refreshToken},
-              );
-
-              await _saveTokens(
-                token: response.data['token'],
-                refreshToken: response.data['refresh_token'],
-              );
-
-              // Retry original request
-              final retryRequest = await _dio.request(
-                e.requestOptions.path,
-                data: e.requestOptions.data,
-                queryParameters: e.requestOptions.queryParameters,
-                options: dio.Options(
-                  headers: {'Authorization': 'Bearer $_token'},
-                ),
-              );
-              return handler.resolve(retryRequest);
-            } catch (error) {
-              await _clearTokens();
-              throw Exception('Session expired. Please log in again.');
-            }
-          }
-          if (e.type == dio.DioExceptionType.connectionTimeout ||
-              e.type == dio.DioExceptionType.receiveTimeout) {
-            throw Exception('Network error: Please check your connection');
-          }
-          return handler.next(e);
-        },
-      ),
-    );
-  }
-
-  Future<void> _saveTokens({
-    required String token,
-    String? refreshToken,
-  }) async {
-    _token = token;
-    await _storage.write(key: 'token', value: token);
-    if (refreshToken != null) {
-      await _storage.write(key: 'refresh_token', value: refreshToken);
+  Future<void> _persistSession(supabase.Session? session) async {
+    if (session == null) {
+      return;
     }
+
+    await _storage.write(key: 'token', value: session.accessToken);
+    await _storage.write(key: 'refresh_token', value: session.refreshToken);
   }
 
   Future<void> _clearTokens() async {
-    _token = null;
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'refresh_token');
   }
 
+  String _slugify(String value) {
+    final slug = value
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return slug.isEmpty ? 'item' : slug;
+  }
+
+  String? _nullIfEmpty(String? value) {
+    if (value == null) {
+      return null;
+    }
+
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  int _lastPageFromTotal(int total, int perPage) {
+    if (total <= 0) {
+      return 1;
+    }
+
+    return (total / perPage).ceil();
+  }
+
+  String _displayError(Object error, String fallbackMessage) {
+    if (error is supabase.AuthException) {
+      return error.message;
+    }
+
+    if (error is supabase.PostgrestException) {
+      return error.message;
+    }
+
+    return '$fallbackMessage: $error';
+  }
+
+  Map<String, List<String>> _fieldErrorsFromException(
+    Object error, {
+    String fallbackKey = 'error',
+  }) {
+    final message = error is supabase.AuthException
+        ? error.message
+        : error is supabase.PostgrestException
+        ? error.message
+        : error.toString();
+
+    return {
+      fallbackKey: [message],
+    };
+  }
+
+  Future<supabase.User> _requireAuthUser() async {
+    await _ensureInitialized();
+
+    final authUser = _client.auth.currentUser;
+    if (authUser == null) {
+      throw Exception('Aucune session active. Veuillez vous reconnecter.');
+    }
+
+    return authUser;
+  }
+
+  Future<Map<String, dynamic>> _ensurePublicUserFromAuthUser({
+    String? fallbackName,
+    String? fallbackEmail,
+  }) async {
+    final authUser = await _requireAuthUser();
+
+    final existing = await _client
+        .from('users')
+        .select('id, auth_user_id, name, email, role')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+
+    if (existing != null) {
+      return Map<String, dynamic>.from(existing);
+    }
+
+    final inserted = await _client
+        .from('users')
+        .insert({
+          'auth_user_id': authUser.id,
+          'name':
+              fallbackName ??
+              authUser.userMetadata?['name']?.toString() ??
+              authUser.email?.split('@').first ??
+              'Utilisateur',
+          'email': fallbackEmail ?? authUser.email,
+          'role': 'user',
+        })
+        .select('id, auth_user_id, name, email, role')
+        .single();
+
+    return Map<String, dynamic>.from(inserted);
+  }
+
+  String _productSelectColumns() {
+    return '''
+      id,
+      category_id,
+      name,
+      slug,
+      description,
+      price,
+      stock_quantity,
+      minimum_stock,
+      barcode,
+      image_path,
+      purchase_price,
+      sale_price,
+      created_at,
+      updated_at,
+      category:categories (
+        id,
+        name,
+        slug,
+        description,
+        created_at,
+        updated_at
+      )
+    ''';
+  }
+
+  String _transactionSelectColumns() {
+    return '''
+      id,
+      product_id,
+      user_id,
+      type,
+      quantity,
+      unit_price,
+      total_price,
+      purchase_price,
+      sale_price,
+      notes,
+      created_at,
+      updated_at,
+      product:products (
+        id,
+        category_id,
+        name,
+        slug,
+        description,
+        price,
+        stock_quantity,
+        minimum_stock,
+        barcode,
+        image_path,
+        purchase_price,
+        sale_price,
+        created_at,
+        updated_at,
+        category:categories (
+          id,
+          name,
+          slug,
+          description,
+          created_at,
+          updated_at
+        )
+      ),
+      user:users (
+        id,
+        name,
+        email,
+        role
+      )
+    ''';
+  }
+
+  Future<String?> _uploadProductImage(File image, String productName) async {
+    final compressedImage = await _compressImage(image);
+    final safeName = _slugify(productName);
+    final filePath =
+        'products/${DateTime.now().millisecondsSinceEpoch}_$safeName.jpg';
+
+    await _client.storage
+        .from(_storageBucket)
+        .uploadBinary(
+          filePath,
+          compressedImage,
+          fileOptions: const supabase.FileOptions(
+            cacheControl: '3600',
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+
+    return _client.storage.from(_storageBucket).getPublicUrl(filePath);
+  }
+
+  Future<Map<String, dynamic>> _createProductRecord(
+    Map<String, dynamic> payload,
+  ) async {
+    final inserted = await _client
+        .from('products')
+        .insert(payload)
+        .select(_productSelectColumns())
+        .single();
+
+    return Map<String, dynamic>.from(inserted);
+  }
+
+  Future<Map<String, dynamic>> _createCategoryRecord(
+    Map<String, dynamic> payload,
+  ) async {
+    final inserted = await _client
+        .from('categories')
+        .insert(payload)
+        .select('id, name, slug, description, created_at, updated_at')
+        .single();
+
+    return Map<String, dynamic>.from(inserted);
+  }
+
+  Future<void> _deleteRecord(String table, int id) async {
+    await _client.from(table).delete().eq('id', id);
+  }
+
   Future<Map<String, dynamic>> login(String email, String password) async {
+    await _ensureInitialized();
+
     try {
-      final response = await _dio.post(
-        '$baseUrl/login',
-        data: {'email': email, 'password': password},
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      await _saveTokens(
-        token: response.data['token'],
-        refreshToken: response.data['refresh_token'],
-      );
+      await _persistSession(response.session);
+      final user = await _ensurePublicUserFromAuthUser(fallbackEmail: email);
 
-      return response.data;
-    } catch (e) {
-      print('Login failed: $e');
-      throw Exception('Login failed: $e');
+      return {
+        'token': response.session?.accessToken,
+        'refresh_token': response.session?.refreshToken,
+        'user': user,
+      };
+    } catch (error) {
+      throw Exception(_displayError(error, 'Échec de connexion'));
     }
   }
 
@@ -154,73 +343,77 @@ class ApiService {
     String email,
     String password,
   ) async {
+    await _ensureInitialized();
+
     try {
-      final response = await _dio.post(
-        '$baseUrl/register',
-        data: {
-          'name': name,
-          'email': email,
-          'password': password,
-          'password_confirmation': password,
-        },
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': name},
       );
 
-      await _saveTokens(
-        token: response.data['token'],
-        refreshToken: response.data['refresh_token'],
+      if (response.session == null) {
+        throw Exception(
+          "L'utilisateur a été créé sans session active. Désactivez la confirmation email dans Supabase Auth pour garder le même flux que Laravel.",
+        );
+      }
+
+      await _persistSession(response.session);
+      final user = await _ensurePublicUserFromAuthUser(
+        fallbackName: name,
+        fallbackEmail: email,
       );
 
-      return response.data;
-    } catch (e) {
-      print('Registration failed: $e');
-      throw Exception('Registration failed: $e');
+      return {
+        'token': response.session?.accessToken,
+        'refresh_token': response.session?.refreshToken,
+        'user': user,
+      };
+    } catch (error) {
+      throw Exception(_displayError(error, 'Échec de création du compte'));
     }
   }
 
   Future<void> logout() async {
+    await _ensureInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      await _dio.post(
-        '$baseUrl/logout',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-    } catch (e) {
-      // Even if the server request fails, we still want to clear local tokens
+      await _client.auth.signOut();
+    } catch (_) {
+      // La session locale doit être nettoyée même si la requête distante échoue.
     } finally {
       await _clearTokens();
     }
   }
 
   Future<PaginatedResponse> getProducts({int page = 1}) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/products',
-        queryParameters: {'page': page},
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
+      final from = (page - 1) * _productsPerPage;
+      final to = from + _productsPerPage - 1;
+
+      final response = await _client
+          .from('products')
+          .select(_productSelectColumns())
+          .order('created_at', ascending: false)
+          .range(from, to)
+          .count();
+
+      final rows = List<Map<String, dynamic>>.from(response.data);
+      final products = rows.map(Product.fromJson).toList();
+      final total = response.count ?? products.length;
+
+      await _cacheService!.cacheProducts(products);
+
+      return PaginatedResponse(
+        products: products,
+        total: total,
+        currentPage: page,
+        lastPage: _lastPageFromTotal(total, _productsPerPage),
       );
-
-      print('response produit : $response.data');
-
-      final paginatedResponse = PaginatedResponse.fromJson(response.data);
-
-      // Save to cache
-      await _cacheService!.cacheProducts(paginatedResponse.products);
-      return paginatedResponse;
-    } catch (e) {
-      print('error: $e');
-      // Load from cache
+    } catch (error) {
       final products = await _cacheService!.getProducts();
       return PaginatedResponse(
         products: products,
@@ -232,22 +425,29 @@ class ApiService {
   }
 
   Future<List<Product>> getLowStockProducts() async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/products/low-stock',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      return (response.data as List).map((p) => Product.fromJson(p)).toList();
-    } catch (e) {
-      final products = await _cacheService!.getProducts();
-      return products.where((p) => p.isLowStock).toList();
+      final response = await _client.rpc('get_low_stock_products');
+      final rows = List<Map<String, dynamic>>.from(response as List);
+      return rows.map(Product.fromJson).toList();
+    } catch (_) {
+      try {
+        final response = await _client
+            .from('products')
+            .select(_productSelectColumns())
+            .order('created_at', ascending: false);
+
+        final rows = List<Map<String, dynamic>>.from(response);
+        return rows
+            .map(Product.fromJson)
+            .where((product) => product.isLowStock)
+            .toList();
+      } catch (_) {
+        final products = await _cacheService!.getProducts();
+        return products.where((product) => product.isLowStock).toList();
+      }
     }
   }
 
@@ -255,59 +455,43 @@ class ApiService {
     Product product, {
     File? image,
   }) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      dio.FormData formData = dio.FormData.fromMap(product.toJson());
-      if (image != null) {
-        final compressedImage = await _compressImage(image);
-        formData.files.add(
-          MapEntry(
-            'image',
-            dio.MultipartFile.fromBytes(
-              compressedImage,
-              filename: 'product_image.jpg',
-            ),
-          ),
-        );
-      }
-      final response = await _dio.post(
-        '$baseUrl/products',
-        data: formData,
-        options: dio.Options(
-          headers: {'Authorization': _token != null ? 'Bearer $_token' : null},
-        ),
-      );
-      // Laravel peut renvoyer {data, message, success} ou {errors}
-      if (response.data['errors'] != null) {
-        return ApiResponse<Product>(
-          data: null,
-          errors: Map<String, List<String>>.from(
-            response.data['errors'].map(
-              (k, v) => MapEntry(k, List<String>.from(v)),
-            ),
-          ),
-          message: response.data['message'],
-          success: false,
-        );
-      }
-      final newProduct = Product.fromJson(
-        response.data['data'] ?? response.data,
-      );
+      final imagePath = image != null
+          ? await _uploadProductImage(image, product.name)
+          : _nullIfEmpty(product.imagePath);
+
+      final payload = <String, dynamic>{
+        'category_id': product.categoryId,
+        'name': product.name.trim(),
+        'slug': _slugify(product.name),
+        'description': _nullIfEmpty(product.description),
+        'price': product.price,
+        'purchase_price': product.purchasePrice,
+        'sale_price': product.salePrice,
+        'stock_quantity': product.stockQuantity,
+        'minimum_stock': product.minimumStock,
+        'barcode': _nullIfEmpty(product.barcode),
+        'image_path': imagePath,
+      };
+
+      final inserted = await _createProductRecord(payload);
+      final newProduct = Product.fromJson(inserted);
+
       await _cacheService!.addProduct(newProduct);
+
       return ApiResponse<Product>(
         data: newProduct,
         errors: null,
-        message: response.data['message'] ?? 'Produit ajouté avec succès',
+        message: 'Produit ajouté avec succès',
         success: true,
       );
-    } catch (e) {
-      // Gestion d'erreur réseau ou autre
+    } catch (error) {
       return ApiResponse<Product>(
         data: null,
-        errors: {
-          'error': [e.toString()],
-        },
+        errors: _fieldErrorsFromException(error),
         message: 'Erreur lors de la création du produit',
         success: false,
       );
@@ -315,27 +499,36 @@ class ApiService {
   }
 
   Future<PaginatedTransactionResponse> getTransactions({int page = 1}) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
-    try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/transactions',
-        queryParameters: {'page': page},
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      final paginatedResponse = PaginatedTransactionResponse.fromJson(
-        response.data,
-      );
 
-      await _cacheService!.cacheTransactions(paginatedResponse.transactions);
-      return paginatedResponse;
-    } catch (e) {
-      print('error transaction : $e');
+    try {
+      final from = (page - 1) * _transactionsPerPage;
+      final to = from + _transactionsPerPage - 1;
+
+      final response = await _client
+          .from('transactions')
+          .select(_transactionSelectColumns())
+          .order('created_at', ascending: false)
+          .range(from, to)
+          .count();
+
+      final rows = List<Map<String, dynamic>>.from(response.data);
+      final transactions = rows.map(Transaction.fromJson).toList();
+      final total = response.count ?? transactions.length;
+
+      await _cacheService!.cacheTransactions(transactions);
+
+      return PaginatedTransactionResponse(
+        transactions: transactions,
+        total: total,
+        currentPage: page,
+        lastPage: _lastPageFromTotal(total, _transactionsPerPage),
+        perPage: _transactionsPerPage,
+        from: total == 0 ? 0 : from + 1,
+        to: total == 0 ? 0 : from + transactions.length,
+      );
+    } catch (error) {
       final transactions = await _cacheService!.getTransactions();
       return PaginatedTransactionResponse(
         transactions: transactions,
@@ -343,75 +536,107 @@ class ApiService {
         currentPage: 1,
         lastPage: 1,
         perPage: transactions.length,
-        from: 1,
+        from: transactions.isEmpty ? 0 : 1,
         to: transactions.length,
       );
     }
   }
 
   Future<Transaction> createTransaction(Transaction transaction) async {
-    await _ensureCacheServiceInitialized();
-    try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.post(
-        '$baseUrl/transactions',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-        data: transaction.toJson(),
-      );
-      print('response : ${response.data}');
-      final newTransaction = Transaction.fromJson(response.data);
-      await _cacheService!.addTransaction(newTransaction);
-      return newTransaction;
-    } catch (e) {
-      await DatabaseService().addToSyncQueue(
-        SyncQueue(
-          id: DateTime.now().millisecondsSinceEpoch,
-          action: 'create',
-          entity: 'transaction',
-          data: transaction.toJson(),
-        ),
-      );
-      throw Exception('Failed to create transaction: $e');
+    final response = await createTransactionWithResponse(transaction);
+    if (response.success && response.data != null) {
+      return response.data!;
     }
+
+    throw Exception(response.message);
   }
 
   Future<Map<String, dynamic>> getStatistics() async {
+    await _ensureInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/transactions/statistics',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      return response.data;
-    } catch (e) {
-      throw Exception('Failed to fetch statistics: $e');
+      final response = await _client.rpc('get_transaction_statistics');
+      return Map<String, dynamic>.from(response as Map);
+    } catch (_) {
+      final transactionResponse = await _client
+          .from('transactions')
+          .select(_transactionSelectColumns())
+          .order('created_at', ascending: false);
+
+      final transactions = List<Map<String, dynamic>>.from(
+        transactionResponse,
+      ).map(Transaction.fromJson).toList();
+
+      final recentTransactions = transactions
+          .take(5)
+          .map((item) => item.toJson());
+
+      return {
+        'total_in': transactions
+            .where((item) => item.type == 'in')
+            .fold<double>(0, (sum, item) => sum + item.totalPrice),
+        'total_out': transactions
+            .where((item) => item.type == 'out')
+            .fold<double>(0, (sum, item) => sum + item.totalPrice),
+        'total_transactions': transactions.length,
+        'recent_transactions': recentTransactions.toList(),
+      };
     }
   }
 
   Future<PaginatedCategoryResponse> getCategories({int page = 1}) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/categories',
-        queryParameters: {'page': page},
+      final from = (page - 1) * _categoriesPerPage;
+      final to = from + _categoriesPerPage - 1;
+
+      final response = await _client
+          .from('categories')
+          .select('id, name, slug, description, created_at, updated_at')
+          .order('created_at', ascending: false)
+          .range(from, to)
+          .count();
+
+      final rows = List<Map<String, dynamic>>.from(response.data);
+      final total = response.count ?? rows.length;
+
+      final productRows = List<Map<String, dynamic>>.from(
+        await _client.from('products').select('category_id'),
       );
-      final paginatedResponse = PaginatedCategoryResponse.fromJson(
-        response.data,
+
+      final counts = <int, int>{};
+      for (final row in productRows) {
+        final categoryId = row['category_id'] as int?;
+        if (categoryId != null) {
+          counts[categoryId] = (counts[categoryId] ?? 0) + 1;
+        }
+      }
+
+      final categories = rows
+          .map(
+            (row) => Category.fromJson({
+              ...row,
+              'products_count': counts[row['id']] ?? 0,
+            }),
+          )
+          .toList();
+
+      await _cacheService!.cacheCategories(categories);
+
+      return PaginatedCategoryResponse(
+        categories: categories,
+        total: total,
+        currentPage: page,
+        lastPage: _lastPageFromTotal(total, _categoriesPerPage),
+        nextPageUrl: null,
+        prevPageUrl: null,
+        perPage: _categoriesPerPage,
+        from: total == 0 ? 0 : from + 1,
+        to: total == 0 ? 0 : from + categories.length,
       );
-      await _cacheService!.cacheCategories(paginatedResponse.categories);
-      return paginatedResponse;
-    } catch (e) {
+    } catch (error) {
       final categories = await _cacheService!.getCategories();
       return PaginatedCategoryResponse(
         categories: categories,
@@ -419,7 +644,7 @@ class ApiService {
         currentPage: 1,
         lastPage: 1,
         perPage: categories.length,
-        from: 1,
+        from: categories.isEmpty ? 0 : 1,
         to: categories.length,
       );
     }
@@ -428,41 +653,31 @@ class ApiService {
   Future<ApiResponse<Category>> createCategoryWithResponse(
     Category category,
   ) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.post(
-        '$baseUrl/categories',
-        data: category.toJson(),
-      );
-      if (response.data['errors'] != null) {
-        return ApiResponse<Category>(
-          data: null,
-          errors: Map<String, List<String>>.from(
-            response.data['errors'].map(
-              (k, v) => MapEntry(k, List<String>.from(v)),
-            ),
-          ),
-          message: response.data['message'],
-          success: false,
-        );
-      }
-      final newCategory = Category.fromJson(
-        response.data['data'] ?? response.data,
-      );
+      final payload = <String, dynamic>{
+        'name': category.name.trim(),
+        'slug': _slugify(category.name),
+        'description': _nullIfEmpty(category.description),
+      };
+
+      final inserted = await _createCategoryRecord(payload);
+      final newCategory = Category.fromJson({...inserted, 'products_count': 0});
+
       await _cacheService!.addCategory(newCategory);
+
       return ApiResponse<Category>(
         data: newCategory,
         errors: null,
-        message: response.data['message'] ?? 'Catégorie ajoutée avec succès',
+        message: 'Catégorie ajoutée avec succès',
         success: true,
       );
-    } catch (e) {
+    } catch (error) {
       return ApiResponse<Category>(
         data: null,
-        errors: {
-          'error': [e.toString()],
-        },
+        errors: _fieldErrorsFromException(error),
         message: 'Erreur lors de la création de la catégorie',
         success: false,
       );
@@ -470,12 +685,13 @@ class ApiService {
   }
 
   Future<void> deleteCategory(int id) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      await _dio.delete('$baseUrl/categories/$id');
+      await _deleteRecord('categories', id);
       await _cacheService!.removeCategory(id);
-    } catch (e) {
+    } catch (error) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
           id: DateTime.now().millisecondsSinceEpoch,
@@ -484,17 +700,18 @@ class ApiService {
           data: {'id': id},
         ),
       );
-      throw Exception('Failed to delete category: $e');
+      throw Exception('Failed to delete category: $error');
     }
   }
 
   Future<void> deleteProduct(int id) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      await _dio.delete('$baseUrl/products/$id');
+      await _deleteRecord('products', id);
       await _cacheService!.removeProduct(id);
-    } catch (e) {
+    } catch (error) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
           id: DateTime.now().millisecondsSinceEpoch,
@@ -503,17 +720,18 @@ class ApiService {
           data: {'id': id},
         ),
       );
-      throw Exception('Failed to delete product: $e');
+      throw Exception('Failed to delete product: $error');
     }
   }
 
   Future<void> deleteTransaction(int id) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      await _dio.delete('$baseUrl/transactions/$id');
+      await _deleteRecord('transactions', id);
       await _cacheService!.removeTransaction(id);
-    } catch (e) {
+    } catch (error) {
       await DatabaseService().addToSyncQueue(
         SyncQueue(
           id: DateTime.now().millisecondsSinceEpoch,
@@ -522,45 +740,18 @@ class ApiService {
           data: {'id': id},
         ),
       );
-      throw Exception('Failed to delete transaction: $e');
+      throw Exception('Failed to delete transaction: $error');
     }
   }
 
   Future<Map<String, dynamic>> getReports() async {
-    try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/reports',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      return response.data;
-    } catch (e) {
-      throw Exception('Failed to fetch reports: $e');
-    }
+    return getStatistics();
   }
 
   Future<Uint8List> exportReports() async {
-    try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/reports/export',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      // TODO: Process response data into PDF (e.g., using pdf package)
-      return response.data as Uint8List;
-    } catch (e) {
-      throw Exception('Failed to export reports: $e');
-    }
+    throw Exception(
+      "L'export des rapports n'est pas encore migré vers Supabase.",
+    );
   }
 
   Future<Uint8List> _compressImage(File image) async {
@@ -574,205 +765,131 @@ class ApiService {
   }
 
   Future<void> syncOfflineData() async {
+    await _ensureInitialized();
+
     final dbService = DatabaseService();
     final syncQueue = await dbService.getSyncQueue();
-    _token = await _storage.read(key: 'token');
 
-    for (var item in syncQueue) {
+    for (final item in syncQueue) {
       try {
         switch (item.action) {
           case 'create':
-            switch (item.entity) {
-              case 'product':
-                await _dio.post(
-                  '$baseUrl/products',
-                  data: item.data,
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
-              case 'transaction':
-                await _dio.post(
-                  '$baseUrl/transactions',
-                  data: item.data,
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
-              case 'category':
-                await _dio.post(
-                  '$baseUrl/categories',
-                  data: item.data,
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
+            if (item.entity == 'product') {
+              await _createProductRecord(Map<String, dynamic>.from(item.data));
+            } else if (item.entity == 'transaction') {
+              await _client.rpc(
+                'create_transaction_with_stock',
+                params: {
+                  'p_product_id': item.data['product_id'],
+                  'p_type': item.data['type'],
+                  'p_quantity': item.data['quantity'],
+                  'p_unit_price': item.data['unit_price'],
+                  'p_notes': item.data['notes'],
+                },
+              );
+            } else if (item.entity == 'category') {
+              await _createCategoryRecord(Map<String, dynamic>.from(item.data));
             }
             break;
           case 'delete':
-            switch (item.entity) {
-              case 'product':
-                await _dio.delete(
-                  '$baseUrl/products/${item.data['id']}',
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
-              case 'transaction':
-                await _dio.delete(
-                  '$baseUrl/transactions/${item.data['id']}',
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
-              case 'category':
-                await _dio.delete(
-                  '$baseUrl/categories/${item.data['id']}',
-                  options: dio.Options(
-                    headers: {
-                      'Authorization': _token != null ? 'Bearer $_token' : null,
-                    },
-                  ),
-                );
-                break;
+            if (item.entity == 'product') {
+              await _deleteRecord('products', item.data['id'] as int);
+            } else if (item.entity == 'transaction') {
+              await _deleteRecord('transactions', item.data['id'] as int);
+            } else if (item.entity == 'category') {
+              await _deleteRecord('categories', item.data['id'] as int);
             }
             break;
         }
+
         await dbService.removeSyncQueueItem(item.id);
-      } catch (e) {
-        print('Failed to sync item ${item.id}: $e');
+      } catch (_) {
         continue;
       }
     }
   }
 
   Future<Map<String, dynamic>> getUserData() async {
-    try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.get(
-        '$baseUrl/user',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      return response.data;
-    } catch (e) {
-      throw Exception('Failed to fetch user data: $e');
-    }
+    await _ensureInitialized();
+    final user = await _ensurePublicUserFromAuthUser();
+    return {
+      'id': user['id'],
+      'name': user['name'],
+      'email': user['email'],
+      'role': user['role'] ?? 'user',
+    };
   }
 
   Future<DashboardData> getDashboardData() async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      var url = '$baseUrl/dashboard';
-      final response = await _dio.get(
-        url,
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
+      final response = await _client.rpc('get_dashboard_data');
+      final dashboardData = DashboardData.fromJson(
+        Map<String, dynamic>.from(response as Map),
       );
-      //print('verif data $response.data');
-      final dashboardData = DashboardData.fromJson(response.data);
-      //print('verif data $dashboardData.totalValue');
       await _cacheService!.cacheDashboard(dashboardData);
       return dashboardData;
-    } catch (e) {
-      print('error get dashboard data : $e');
-      // Essayer de récupérer depuis le cache
+    } catch (error) {
       final cachedDashboard = await _cacheService!.getDashboard();
       if (cachedDashboard != null) {
         return cachedDashboard;
       }
-      throw Exception('Failed to get dashboard data: $e');
+      throw Exception('Failed to get dashboard data: $error');
     }
   }
 
   Future<ApiResponse<Transaction>> createTransactionWithResponse(
     Transaction transaction,
   ) async {
+    await _ensureInitialized();
     await _ensureCacheServiceInitialized();
+
     try {
-      _token = await _storage.read(key: 'token');
-      final response = await _dio.post(
-        '$baseUrl/transactions',
-        options: dio.Options(
-          headers: {
-            'Authorization': _token != null ? 'Bearer $_token' : null,
-            'Content-Type': 'application/json',
-          },
-        ),
-        data: transaction.toJson(),
+      final response = await _client.rpc(
+        'create_transaction_with_stock',
+        params: {
+          'p_product_id': transaction.productId,
+          'p_type': transaction.type,
+          'p_quantity': transaction.quantity,
+          'p_unit_price': transaction.unitPrice,
+          'p_notes': transaction.notes,
+        },
       );
-      if (response.data['errors'] != null) {
-        return ApiResponse<Transaction>(
-          data: null,
-          errors: Map<String, List<String>>.from(
-            response.data['errors'].map(
-              (k, v) => MapEntry(k, List<String>.from(v)),
-            ),
-          ),
-          message: response.data['message'],
-          success: false,
-        );
-      }
+
       final newTransaction = Transaction.fromJson(
-        response.data['data'] ?? response.data,
+        Map<String, dynamic>.from(response as Map),
       );
+
       await _cacheService!.addTransaction(newTransaction);
+
       return ApiResponse<Transaction>(
         data: newTransaction,
         errors: null,
-        message: response.data['message'] ?? 'Transaction ajoutée avec succès',
+        message: 'Transaction ajoutée avec succès',
         success: true,
       );
-    } catch (e) {
+    } catch (error) {
       return ApiResponse<Transaction>(
         data: null,
-        errors: {
-          'error': [e.toString()],
-        },
+        errors: _fieldErrorsFromException(error),
         message: 'Erreur lors de la création de la transaction',
         success: false,
       );
     }
   }
 
-  /// Vide le token d'authentification
   Future<void> clearAuthToken() async {
-    await _clearTokens();
+    await logout();
   }
 
-  /// Vide toutes les données de la base de données locale
   Future<void> clearAllData() async {
     await _ensureCacheServiceInitialized();
     await _cacheService!.clearCache();
   }
 
-  /// Arrête la synchronisation en arrière-plan
   Future<void> stopBackgroundSync() async {
-    final syncService = SyncService();
-    syncService.stop();
+    SyncService().stop();
   }
 }

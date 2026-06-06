@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'api_service.dart';
 
 class SyncService {
@@ -27,7 +28,9 @@ class SyncService {
 
   Future<void> _syncAll() async {
     try {
-      final api = ApiService();
+      final api = Get.isRegistered<ApiService>()
+          ? Get.find<ApiService>()
+          : ApiService();
       // Synchronise les produits
       await api.getProducts();
       // Synchronise les catégories
